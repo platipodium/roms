@@ -1,12 +1,13 @@
 #include "cppdefs.h"
 
-#if defined SENSITIVITY_4DVAR || defined TL_W4DPSAS || defined TL_W4DVAR
+#if (defined SENSITIVITY_4DVAR || defined TL_W4DPSAS || \
+     defined TL_W4DVAR)        && !defined RPCG
       SUBROUTINE tl_congrad (ng, model, outLoop, innLoop, NinnLoop,     &
      &                       Lcgini)
 !
 !svn $Id$
 !=================================================== Andrew M. Moore ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group      Hernan G. Arango   !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group      Hernan G. Arango   !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================

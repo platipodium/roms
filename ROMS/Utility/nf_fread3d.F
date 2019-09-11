@@ -3,7 +3,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -44,7 +44,7 @@
 
       CONTAINS
 
-#if defined PARALLEL_IO && defined DISTRIBUTE
+#if defined PARALLEL_IN && defined DISTRIBUTE
 !
 !***********************************************************************
       FUNCTION nf_fread3d (ng, model, ncname, ncid,                     &
@@ -69,6 +69,7 @@
 # if defined MASKING && defined READ_WATER
       USE distribute_mod, ONLY : mp_collect
 # endif
+      USE strings_mod,    ONLY : FoundError
 !
       implicit none
 !
@@ -78,7 +79,7 @@
       integer, intent(in) :: LBi, UBi, LBj, UBj, LBk, UBk
       integer, intent(in) :: Vsize(4)
 
-      real(r8), intent(in)  :: Ascl
+      real(dp), intent(in)  :: Ascl
       real(r8), intent(out) :: Amin
       real(r8), intent(out) :: Amax
 
@@ -205,7 +206,8 @@
       CALL netcdf_get_fatt (ng, model, ncname, ncvarid, AttName,        &
      &                      AttValue, foundit,                          &
      &                      ncid = ncid)
-      IF (exit_flag.ne.NoError) THEN
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) THEN
         nf_fread3d=ioerror
         RETURN
       END IF
@@ -486,9 +488,8 @@
       USE mod_ncparam
       USE mod_netcdf
       USE mod_scalars
-
-# ifdef DISTRIBUTE
 !
+# ifdef DISTRIBUTE
       USE distribute_mod, ONLY : mp_bcasti
 #  ifdef INLINE_2DIO
       USE distribute_mod, ONLY : mp_scatter2d
@@ -496,6 +497,7 @@
       USE distribute_mod, ONLY : mp_scatter3d
 #  endif
 # endif
+      USE strings_mod,    ONLY : FoundError
 !
       implicit none
 !
@@ -505,7 +507,7 @@
       integer, intent(in) :: LBi, UBi, LBj, UBj, LBk, UBk
       integer, intent(in) :: Vsize(4)
 
-      real(r8), intent(in)  :: Ascl
+      real(dp), intent(in)  :: Ascl
       real(r8), intent(out) :: Amin
       real(r8), intent(out) :: Amax
 
@@ -617,7 +619,8 @@
       CALL netcdf_get_fatt (ng, model, ncname, ncvarid, AttName,        &
      &                      AttValue, foundit,                          &
      &                      ncid = ncid)
-      IF (exit_flag.ne.NoError) THEN
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) THEN
         nf_fread3d=ioerror
         RETURN
       END IF
@@ -748,7 +751,8 @@
 # ifdef DISTRIBUTE
         CALL mp_bcasti (ng, model, status)
 # endif
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           exit_flag=2
           ioerror=status
           nf_fread3d=status

@@ -3,7 +3,7 @@
       SUBROUTINE seaice
 !
 !=======================================================================
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !================================================== Hernan G. Arango ===
 !                                                                      !
 !  This is the main driver routine for the sea ice portion of the
@@ -22,9 +22,6 @@
       USE ice_vbc_mod, ONLY : ice_vbc
 # ifdef ICE_THERMO
       USE ice_thermo_mod, ONLY : ice_thermo
-#  ifdef ICE_SMOOTH
-      USE ice_smoother_mod, ONLY : ice_smoother
-#  endif
 # endif
 # if defined ICE_MOMENTUM && defined ICE_EVP
       USE ice_evp_mod, ONLY : ice_evp
@@ -152,9 +149,6 @@
           ng=GridNumber(ig,nl)
           DO tile=first_tile(ng),last_tile(ng),+1
             CALL ice_thermo (ng, TILE)
-# ifdef ICE_SMOOTH
-            CALL ice_smoother(ng, TILE)
-# endif
             CALL ice_limit(ng, TILE)
           END DO
 !$OMP BARRIER

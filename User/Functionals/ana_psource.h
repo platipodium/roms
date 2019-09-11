@@ -2,7 +2,7 @@
 !
 !! svn $Id$
 !!======================================================================
-!! Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!! Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !!   Licensed under a MIT/X style license                              !
 !!   See License_ROMS.txt                                              !
 !=======================================================================
@@ -136,7 +136,7 @@
 !!           applications.  See examples for how to do this in
 !!           source file:  "ROMS/Functionals/ana_psource.h".
 !!
-      IF (iic(ng).eq.ntstart(ng)) THEN
+      IF ((iic(ng).eq.ntstart(ng)).or.(iic(ng).eq.0)) THEN
 !
 !  Set-up point Sources/Sink number (Nsrc), direction (Dsrc), I- and
 !  J-grid locations (Isrc,Jsrc). Currently, the direction can be along
@@ -265,6 +265,11 @@
 #  ifdef ONE_TRACER_SOURCE
           SOURCES(ng)%Tsrc(itemp)=???
           SOURCES(ng)%Tsrc(isalt)=???
+#  elif defined TWO_D_TRACER_SOURCE
+          DO is=1,Nsrc(ng)
+            SOURCES(ng)%Tsrc(is,itemp)=???
+            SOURCES(ng)%Tsrc(is,isalt)=???
+          END DO
 #  else
           DO k=1,N(ng)
             DO is=1,Nsrc(ng)

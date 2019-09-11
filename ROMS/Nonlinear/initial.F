@@ -3,7 +3,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -21,6 +21,9 @@
       USE mod_fourdvar
 #endif
       USE mod_grid
+#ifdef CICE_MODEL
+      USE CICE_InitMod
+#endif
       USE mod_iounits
       USE mod_ncparam
 #ifdef NESTING
@@ -31,36 +34,41 @@
       USE mod_stepping
 !
       USE analytical_mod
+      USE dateclock_mod,     ONLY : time_string
 # ifdef DISTRIBUTE
-      USE distribute_mod, ONLY : mp_bcasti
+      USE distribute_mod,    ONLY : mp_bcasti
 # endif
 #ifdef TLM_CHECK
-      USE ini_adjust_mod, ONLY : ini_perturb
+      USE ini_adjust_mod,    ONLY : ini_perturb
 #endif
-      USE ini_hmixcoef_mod, ONLY : ini_hmixcoef
-      USE metrics_mod, ONLY : metrics
+      USE ini_hmixcoef_mod,  ONLY : ini_hmixcoef
+      USE metrics_mod,       ONLY : metrics
 #ifdef NESTING
-      USE nesting_mod, ONLY : nesting
+      USE nesting_mod,       ONLY : nesting
 #endif
 #ifdef SOLVE3D
-      USE set_depth_mod, ONLY : set_depth
-      USE omega_mod, ONLY : omega
-      USE rho_eos_mod, ONLY : rho_eos
-      USE set_massflux_mod, ONLY : set_massflux
+      USE set_depth_mod,     ONLY : set_depth0, set_depth
+      USE omega_mod,         ONLY : omega
+      USE rho_eos_mod,       ONLY : rho_eos
+      USE set_massflux_mod,  ONLY : set_massflux
 #endif
 #ifdef ICE_STRENGTH_QUAD
       USE ini_strengthcoef_mod, ONLY : ini_strengthcoef
 #endif
 #ifdef MASKING
-      USE set_masks_mod, ONLY : set_masks
+      USE set_masks_mod,     ONLY : set_masks
 #endif
-      USE stiffness_mod, ONLY : stiffness
-#ifdef WAVES_OCEAN
+      USE stiffness_mod,     ONLY : stiffness
+#if defined WAV_COUPLING && defined MCT_LIB
       USE ocean_coupler_mod, ONLY : ocn2wav_coupling
+#endif
+      USE strings_mod,       ONLY : FoundError
+#ifdef WET_DRY
+      USE wetdry_mod,        ONLY : wetdry
 #endif
 #if defined PROPAGATOR || \
     (defined MASKING    && (defined READ_WATER || defined WRITE_WATER))
-      USE wpoints_mod, ONLY : wpoints
+      USE wpoints_mod,       ONLY : wpoints
 #endif
 !
       implicit none
@@ -74,6 +82,7 @@
       integer :: ng, thread, tile
 #ifdef NESTING
       integer :: ig, nl
+      integer :: cr, i, m
 #endif
 
       integer, dimension(Ngrids) :: IniRec, Tindex
@@ -138,13 +147,35 @@
         time(ng)=tdays(ng)*day2sec
 !$OMP MASTER
         ntstart(ng)=INT((time(ng)-dstart*day2sec)/dt(ng))+1
-        ntend(ng)=ntimes(ng)
+        ntend(ng)=ntstart(ng)+ntimes(ng)-1
         ntfirst(ng)=ntstart(ng)
 !$OMP END MASTER
 !$OMP BARRIER
         step_counter(ng)=0
         CALL time_string (time(ng), time_code(ng))
+#ifdef CICE_MODEL
+! kca - calculate timesteps for restart output
+        tspy(ng) = 60*60*24*365/dt(ng)
+        tspd(ng) = 60*60*24/dt(ng)
+#endif
       END DO
+
+#ifdef CICE_MODEL
+! kca - calculate timesteps for restart output
+      dleftinSep = 273-dstart
+      Oct = dleftinSep
+      Nov = Oct + 31
+      Dec = Nov + 30
+      Jan = Dec + 31
+      Feb = Jan + 31
+      Mar = Feb + 28
+      Apr = Mar + 31
+      May = Apr + 30
+      Jun = May + 31
+      Jul = Jun + 30
+      Aug = Jul + 31
+      Sep = Aug + 31
+#endif
 
 #ifdef PROFILE
 !
@@ -154,7 +185,7 @@
 !
       DO ng=1,Ngrids
         DO thread=THREAD_RANGE
-          CALL wclock_on (ng, iNLM, 2)
+          CALL wclock_on (ng, iNLM, 2, __LINE__, __FILE__)
         END DO
       END DO
 !$OMP BARRIER
@@ -171,7 +202,6 @@
 !  histroy NetCDF files or append (false) to an existing file.  Set
 !  record to read from initial NetCDF file.
 !
-!$OMP MASTER
       IF (First) THEN
         First=.FALSE.
         DO ng=1,Ngrids
@@ -179,11 +209,14 @@
           LdefINI(ng)=.TRUE.
 # endif
           LdefHIS(ng)=.TRUE.
+# ifndef CORRELATION
           CALL def_ini (ng)
+# endif
 # ifdef DISTRIBUTE
           CALL mp_bcasti (ng, iNLM, exit_flag)
 # endif
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
           IniRec(ng)=nrrec(ng)
           INI(ng)%Rindex=IniRec(ng)
         END DO
@@ -231,23 +264,6 @@
         LwrtRST(ng)=.TRUE.
       END DO
 # endif
-!$OMP END MASTER
-!$OMP BARRIER
-#endif
-#ifdef OBSERVATIONS
-!
-!-----------------------------------------------------------------------
-!  Open observations NetCDF file and initialize various variables
-!  needed for processing the nonlinear state solution at observation
-!  locations.
-!-----------------------------------------------------------------------
-!
-      DO ng=1,Ngrids
-!$OMP MASTER
-        CALL obs_initial (ng, iNLM, .FALSE.)
-        IF (exit_flag.ne.NoError) RETURN
-!$OMP END MASTER
-      END DO
 !$OMP BARRIER
 #endif
 !
@@ -282,7 +298,8 @@
           CALL mp_bcasti (ng, iNLM, exit_flag)
 # endif
 !$OMP BARRIER
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
         END DO
 #endif
 
@@ -364,13 +381,14 @@
         END DO
 !$OMP BARRIER
 #endif
+#if !defined CORRELATION
 !
 !-----------------------------------------------------------------------
 !  If appropriate, set spatially varying nudging coefficients time
 !  scales.
 !-----------------------------------------------------------------------
 !
-#ifdef ANA_NUDGCOEF
+# ifdef ANA_NUDGCOEF
         DO ng=1,Ngrids
           IF (Lnudging(ng)) THEN
             DO tile=first_tile(ng),last_tile(ng),+1
@@ -379,19 +397,21 @@
 !$OMP BARRIER
           END IF
         END DO
-#else
+# else
         DO ng=1,Ngrids
           IF (Lnudging(ng)) THEN
 !$OMP MASTER
             CALL get_nudgcoef (ng, iNLM)
 !$OMP END MASTER
-# ifdef DISTRIBUTE
+#  ifdef DISTRIBUTE
             CALL mp_bcasti (ng, iNLM, exit_flag)
-# endif
+#  endif
 !$OMP BARRIER
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
           END IF
         END DO
+# endif
 #endif
       END IF
 !
@@ -456,7 +476,7 @@
 !
       DO ng=1,Ngrids
         DO tile=first_tile(ng),last_tile(ng),+1
-          CALL set_depth (ng, tile)
+          CALL set_depth (ng, tile, iNLM)
         END DO
 !$OMP BARRIER
       END DO
@@ -475,6 +495,7 @@
           DO tile=first_tile(ng),last_tile(ng),+1
             CALL ana_initial (ng, tile, iNLM)
           END DO
+          io_time = time(ng)
 !$OMP BARRIER
         END IF
       END DO
@@ -537,7 +558,8 @@
         CALL mp_bcasti (ng, iNLM, exit_flag)
 # endif
 !$OMP BARRIER
-        IF (exit_flag.ne.NoError) RETURN
+        IF (FoundError(exit_flag, NoError, __LINE__,                    &
+     &                 __FILE__)) RETURN
         time(ng)=io_time                     ! needed for shared-memory
       END DO
 #else
@@ -547,14 +569,15 @@
       DO ng=1,Ngrids
         IF (nrrec(ng).ne.0) THEN
 !$OMP MASTER
-          CALL get_state (ng, 0, 1, INI(ng)%name,                      &
+          CALL get_state (ng, 0, 1, INI(ng)%name,                       &
      &                    IniRec(ng), Tindex(ng))
 !$OMP END MASTER
 # ifdef DISTRIBUTE
           CALL mp_bcasti (ng, iNLM, exit_flag)
 # endif
 !$OMP BARRIER
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
           time(ng)=io_time                   ! needed for shared-memory
         END IF
       END DO
@@ -570,10 +593,59 @@
             CALL ana_ice (ng, TILE, iNLM)
           END DO
 !$OMP BARRIER
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
           time(ng)=io_time                   ! needed for shared-memory
         END IF
       END DO
+#endif
+#ifdef WET_DRY
+!
+!-----------------------------------------------------------------------
+!  Process initial wet/dry masks.
+!-----------------------------------------------------------------------
+!
+      DO ng=1,Ngrids
+!
+!  If restart, read in wet/dry masks.
+!
+        IF (nrrec(ng).ne.0) THEN
+!$OMP MASTER
+          CALL get_wetdry (ng, iNLM, IniRec(ng))
+!$OMP END MASTER
+# ifdef DISTRIBUTE
+          CALL mp_bcasti (ng, iNLM, exit_flag)
+# endif
+!$OMP BARRIER
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
+        ELSE
+          DO tile=first_tile(ng),last_tile(ng),+1
+            CALL wetdry (ng, tile, Tindex(ng), .TRUE.)
+          END DO
+!$OMP BARRIER
+        END IF
+      END DO
+#endif
+
+#ifdef OBSERVATIONS
+!
+!-----------------------------------------------------------------------
+!  Open observations NetCDF file and initialize various variables
+!  needed for processing the nonlinear state solution at observation
+!  locations. Need to be done after processing initial conditions since
+!  the correct initial time is needed to determine the first "ObsTime"
+!  to process.
+!-----------------------------------------------------------------------
+!
+      DO ng=1,Ngrids
+!$OMP MASTER
+        CALL obs_initial (ng, iNLM, .FALSE.)
+!$OMP END MASTER
+        IF (FoundError(exit_flag, NoError, __LINE__,                    &
+     &                 __FILE__)) RETURN
+      END DO
+!$OMP BARRIER
 #endif
 
 #if (defined W4DPSAS || defined TL_W4DPSAS || \
@@ -582,7 +654,7 @@
      defined ADJUST_STFLUX)
 !
 !-----------------------------------------------------------------------
-!  Read in the surface forcing and/or open boundary conditions
+!  Read in the surface forcing and or open boundary conditions
 !  increments for PSAS from record IniRec of the NLM initial NetCDF
 !  file.
 !-----------------------------------------------------------------------
@@ -590,14 +662,15 @@
       IF (Nrun.gt.1) THEN
         DO ng=1,Ngrids
 !$OMP MASTER
-          CALL get_state (ng, 12, 12, INI(ng)%name,                     &
+          CALL get_state (ng, 5, 5, INI(ng)%name,                       &
      &                    IniRec(ng), Tindex(ng))
 !$OMP END MASTER
 # ifdef DISTRIBUTE
           CALL mp_bcasti (ng, iNLM, exit_flag)
 # endif
 !$OMP BARRIER
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
         END DO
       END IF
 #endif
@@ -620,66 +693,20 @@
       END IF
 #endif
 
-#ifdef NESTING
-!
-!-----------------------------------------------------------------------
-!  If nesting, process 2D state fields initial conditons in the contact
-!  regions.
-!-----------------------------------------------------------------------
-!
-      DO nl=1,NestLayers
-        DO ig=1,GridsInLayer(nl)
-          ng=GridNumber(ig,nl)
-          IF (ANY(CompositeGrid(:,ng))) THEN
-            CALL nesting (ng, iNLM, nFSIC)        ! free-surface
-#  ifndef SOLVE3D
-            CALL nesting (ng, iNLM, n2dIC)        ! 2d momentum
-#  endif
-          END IF
-        END DO
-      END DO
-#endif
-
 #ifdef SOLVE3D
 !
 !-----------------------------------------------------------------------
-!  Compute initial unperturbed depths. Notice that during the
-!  initialization "Zt_avg1" is always zero.
+!  Compute time independent (Zt_avg1=0) anf initial time dependent
+!  depths and level thicknesses.
 !-----------------------------------------------------------------------
 !
       DO ng=1,Ngrids
         DO tile=first_tile(ng),last_tile(ng),+1
-          CALL set_depth (ng, tile)
+          CALL set_depth0 (ng, tile, iNLM)
+          CALL set_depth  (ng, tile, iNLM)
         END DO
 !$OMP BARRIER
       END DO
-
-# ifdef NESTING
-!
-!-----------------------------------------------------------------------
-!  If nesting, process 3D state fields initial conditons in the contact
-!  regions.
-!-----------------------------------------------------------------------
-!
-!  Determine vertical indices and vertical interpolation weights in
-!  the contact zone using initial unperturbed depth arrays.
-!
-      DO ng=1,Ngrids
-        CALL nesting (ng, iNLM, nzwgt)
-      END DO
-!
-!  3D state variables.
-!
-      DO nl=1,NestLayers
-        DO ig=1,GridsInLayer(nl)
-          ng=GridNumber(ig,nl)
-          IF (ANY(CompositeGrid(:,ng))) THEN
-            CALL nesting (ng, iNLM, n3dIC)        ! 3D momentum
-            CALL nesting (ng, iNLM, nTVIC)        ! Tracer variables
-          END IF
-        END DO
-      END DO
-# endif
 !
 !-----------------------------------------------------------------------
 !  Compute initial horizontal mass fluxes, Hz*u/n and Hz*v/m.
@@ -687,7 +714,7 @@
 !
       DO ng=1,Ngrids
         DO tile=first_tile(ng),last_tile(ng),+1
-          CALL set_massflux (ng, tile)
+          CALL set_massflux (ng, tile, iNLM)
         END DO
 !$OMP BARRIER
       END DO
@@ -701,8 +728,8 @@
 !
       DO ng=1,Ngrids
         DO tile=first_tile(ng),last_tile(ng),+1
-          CALL omega (ng, tile)
-          CALL rho_eos (ng, tile)
+          CALL omega (ng, tile, iNLM)
+          CALL rho_eos (ng, tile, iNLM)
         END DO
 !$OMP BARRIER
       END DO
@@ -770,37 +797,43 @@
 !$OMP END MASTER
 !$OMP BARRIER
 # endif
+# if !defined CORRELATION
 !
-!  If applicable, check input multi-files where the time records for
-!  a particular field are split into several NetCDF files.  Initialize
-!  several parameters in the file structure so the appropriate input
-!  file is selected during initialization/restart.
+!  If applicable, close all input boundary, climatology, and forcing
+!  NetCDF files and set associated parameters to the closed state. This
+!  step is essential in iterative algorithms that run the full TLM
+!  repetitively. Then, Initialize several parameters in their file
+!  structure, so the appropriate input single or multi-file is selected
+!  during initialization/restart.
 !
       DO ng=1,Ngrids
 !$OMP MASTER
+        CALL close_inp (ng, iNLM)
         CALL check_multifile (ng, iNLM)
 !$OMP END MASTER
-# ifdef DISTRIBUTE
+#  ifdef DISTRIBUTE
         CALL mp_bcasti (ng, iNLM, exit_flag)
-# endif
+#  endif
 !$OMP BARRIER
-        IF (exit_flag.ne.NoError) RETURN
+        IF (FoundError(exit_flag, NoError, __LINE__,                    &
+     &                 __FILE__)) RETURN
       END DO
 !
 !  If applicable, read in input data.
 !
       DO ng=1,Ngrids
-        CALL close_inp (ng, iNLM)
 !$OMP MASTER
         CALL get_idata (ng)
         CALL get_data (ng)
 !$OMP END MASTER
-# ifdef DISTRIBUTE
+#  ifdef DISTRIBUTE
         CALL mp_bcasti (ng, iNLM, exit_flag)
-# endif
+#  endif
 !$OMP BARRIER
-        IF (exit_flag.ne.NoError) RETURN
+        IF (FoundError(exit_flag, NoError, __LINE__,                    &
+     &                 __FILE__)) RETURN
       END DO
+# endif
 #endif
 
 #ifdef MASKING
@@ -815,6 +848,66 @@
         END DO
 !$OMP BARRIER
       END DO
+#endif
+
+#if !defined CORRELATION
+# ifdef NESTING
+#  if defined MASKING || defined WET_DRY
+!
+!-----------------------------------------------------------------------
+!  If nesting and Land/Sea masking, scale horizontal interpolation
+!  weights to account for land contact points.
+!-----------------------------------------------------------------------
+!
+      DO ng=1,Ngrids
+        DO tile=first_tile(ng),last_tile(ng),+1
+          CALL nesting (ng, iNLM, nmask)
+        END DO
+!$OMP BARRIER
+      END DO
+#  endif
+!
+!-----------------------------------------------------------------------
+!  If nesting, process state fields initial conditions in the contact
+!  regions.
+!-----------------------------------------------------------------------
+!
+!  Free-surface and 2D-momentum.
+!
+      DO nl=1,NestLayers
+        DO ig=1,GridsInLayer(nl)
+          ng=GridNumber(ig,nl)
+          IF (ANY(CompositeGrid(:,ng))) THEN
+            CALL nesting (ng, iNLM, nFSIC)        ! free-surface
+#  ifndef SOLVE3D
+            CALL nesting (ng, iNLM, n2dIC)        ! 2d momentum
+#  endif
+          END IF
+        END DO
+      END DO
+
+#  ifdef SOLVE3D
+!
+!  Determine vertical indices and vertical interpolation weights in
+!  the contact zone using initial unperturbed depth arrays.
+!
+      DO ng=1,Ngrids
+        CALL nesting (ng, iNLM, nzwgt)
+      END DO
+!
+!  3D-momentum and tracers.
+!
+      DO nl=1,NestLayers
+        DO ig=1,GridsInLayer(nl)
+          ng=GridNumber(ig,nl)
+          IF (ANY(CompositeGrid(:,ng))) THEN
+            CALL nesting (ng, iNLM, n3dIC)        ! 3D momentum
+            CALL nesting (ng, iNLM, nTVIC)        ! Tracer variables
+          END IF
+        END DO
+      END DO
+#  endif
+# endif
 #endif
 
 #if defined PROPAGATOR || \
@@ -851,7 +944,8 @@
 # ifdef DISTRIBUTE
           CALL mp_bcasti (ng, iTLM, exit_flag)
 # endif
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
         END IF
       END DO
 #endif
@@ -901,7 +995,7 @@
       END DO
 #endif
 
-# ifdef WAVES_OCEAN
+# if defined WAV_COUPLING && defined MCT_LIB
 !
 !-----------------------------------------------------------------------
 !  Read in initial forcing from coupled wave model.
@@ -920,13 +1014,22 @@
 !  Initialize time-stepping counter and clock.
 !-----------------------------------------------------------------------
 !
-!  Subsract one time unit to avoid special case due to initialization
+!  Subtract one time unit to avoid special case due to initialization
 !  in the main time-stepping routine.
 !
       DO ng=1,Ngrids
         iic(ng)=ntstart(ng)-1
         time(ng)=time(ng)-dt(ng)
       END DO
+
+#ifdef CICE_MODEL
+!
+!-----------------------------------------------------------------------
+! Initialize the ice model
+!-----------------------------------------------------------------------
+!
+      CALL cice_init
+#endif
 
 #ifdef PROFILE
 !
@@ -936,7 +1039,7 @@
 !
       DO ng=1,Ngrids
         DO thread=THREAD_RANGE
-          CALL wclock_off (ng, iNLM, 2)
+          CALL wclock_off (ng, iNLM, 2, __LINE__, __FILE__)
         END DO
 !$OMP BARRIER
       END DO

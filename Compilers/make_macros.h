@@ -1,7 +1,7 @@
 /*
 ** svn $Id$
 ********************************************************** Hernan G. Arango ***
-** Copyright (c) 2002-2014 The ROMS/TOMS Group                               **
+** Copyright (c) 2002-2019 The ROMS/TOMS Group                               **
 **   Licensed under a MIT/X style license                                    **
 **   See License_ROMS.txt                                                    **
 *******************************************************************************
@@ -14,6 +14,13 @@
 */
 
 #include "../ROMS/Include/cppdefs.h"
+
+/*
+** Process ROMS model.
+*/
+
+  USE_ROMS := on
+
 
 /*
 ** Process adjoint model.
@@ -46,7 +53,7 @@
 #endif
 
 /*
-** Process Sea Ice model.
+** Process ROMS Sea Ice model.
 */
 
 #ifdef ICE_MODEL
@@ -55,8 +62,44 @@
   USE_SEAICE :=
 #endif
 
+#ifdef CICE_MODEL
+  USE_CICE := on
+#else
+  USE_CICE :=
+#endif
+
 /*
-** Process WRF Atmospheric model.
+** Process CICE seaice model for coupling.
+*/
+
+#ifdef CICE_COUPLING
+  USE_CICE := on
+#else
+  USE_CICE :=
+#endif
+
+/*
+** Process COAMPS Atmospheric model for coupling.
+*/
+
+#ifdef COAMPS_COUPLING
+  USE_COAMPS := on
+#else
+  USE_COAMPS :=
+#endif
+
+/*
+** Process RegCM Atmospheric model for coupling.
+*/
+
+#ifdef REGCM_COUPLING
+  USE_REGCM := on
+#else
+  USE_REGCM :=
+#endif
+
+/*
+** Process WRF Atmospheric model coupling.
 */
 
 #ifdef WRF_COUPLING
@@ -66,7 +109,7 @@
 #endif
 
 /*
-** Process SWAN wave model.
+** Process SWAN wave model for coupling.
 */
 
 #ifdef SWAN_COUPLING
@@ -76,13 +119,23 @@
 #endif
 
 /*
-** Process REFDIF wave model.
+** Process REFDIF wave model for coupling.
 */
 
 #ifdef REFDIF_COUPLING
   USE_REFDIF := on
 #else
   USE_REFDIF :=
+#endif
+
+/*
+** Process WAM wave model for coupling.
+*/
+
+#ifdef WAM_COUPLING
+  USE_WAM := on
+#else
+  USE_WAM :=
 #endif
 
 /*

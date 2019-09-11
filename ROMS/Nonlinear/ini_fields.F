@@ -4,7 +4,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group       Andrew M. Moore   !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group       Andrew M. Moore   !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -50,7 +50,7 @@
 # include "tile.h"
 !
 # ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 2)
+      CALL wclock_on (ng, iNLM, 2, __LINE__, __FILE__)
 # endif
       CALL ini_fields_tile (ng, tile, model,                            &
      &                      LBi, UBi, LBj, UBj,                         &
@@ -68,12 +68,6 @@
      &                      GRID(ng) % rmask_wet,                       &
      &                      GRID(ng) % umask_wet,                       &
      &                      GRID(ng) % vmask_wet,                       &
-#  ifdef SOLVE3D
-     &                      GRID(ng) % utmask_wet,                      &
-     &                      GRID(ng) % vtmask_wet,                      &
-     &                      GRID(ng) % umask_diff,                      &
-     &                      GRID(ng) % vmask_diff,                      &
-#  endif
 # endif
 # ifdef PERFECT_RESTART
 #  ifdef SOLVE3D
@@ -104,7 +98,6 @@
      &                      ICE(ng) % hi,                               &
      &                      ICE(ng) % hsn,                              &
      &                      ICE(ng) % ti,                               &
-     &                      ICE(ng) % sfwat,                            &
      &                      ICE(ng) % ageice,                           &
 #  endif
 # endif
@@ -112,7 +105,7 @@
      &                      OCEAN(ng) % vbar,                           &
      &                      OCEAN(ng) % zeta)
 # ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 2)
+      CALL wclock_off (ng, iNLM, 2, __LINE__, __FILE__)
 # endif
       RETURN
       END SUBROUTINE ini_fields
@@ -130,10 +123,6 @@
 # endif
 # ifdef WET_DRY
      &                            rmask_wet, umask_wet, vmask_wet,      &
-#  ifdef SOLVE3D
-     &                            utmask_wet, vtmask_wet,               &
-     &                            umask_diff, vmask_diff,               &
-#  endif
 # endif
 # ifdef PERFECT_RESTART
 #  ifdef SOLVE3D
@@ -152,7 +141,7 @@
      &                            t, u, v,                              &
 #  ifdef ICE_MODEL
      &                            ui, vi, ai, hi, hsn,                  &
-     &                            ti, sfwat, ageice,                    &
+     &                            ti, ageice,                           &
 #  endif
 # endif
      &                            ubar, vbar, zeta)
@@ -161,15 +150,11 @@
       USE mod_param
       USE mod_ncparam
       USE mod_scalars
-      USE mod_sources
 # ifdef SOGLOBEC
       USE mod_clima
 # endif
 # if defined SEDIMENT || defined BBL_MODEL
       USE mod_sediment
-# endif
-# ifdef WET_DRY
-      USE bc_2d_mod
 # endif
 !
       USE exchange_2d_mod
@@ -217,15 +202,9 @@
       real(r8), intent(in) :: vmask(LBi:,LBj:)
 #  endif
 #  ifdef WET_DRY
-      real(r8), intent(in) :: rmask_wet(LBi:,LBj:)
+      real(r8), intent(in)    :: rmask_wet(LBi:,LBj:)
       real(r8), intent(inout) :: umask_wet(LBi:,LBj:)
       real(r8), intent(inout) :: vmask_wet(LBi:,LBj:)
-#   ifdef SOLVE3D
-      real(r8), intent(inout) :: utmask_wet(LBi:,LBj:)
-      real(r8), intent(inout) :: vtmask_wet(LBi:,LBj:)
-      real(r8), intent(inout) :: umask_diff(LBi:,LBj:)
-      real(r8), intent(inout) :: vmask_diff(LBi:,LBj:)
-#   endif
 #  endif
 #  ifdef SOLVE3D
       real(r8), intent(in) :: Hz(LBi:,LBj:,:)
@@ -261,7 +240,6 @@
       real(r8), intent(inout) :: hi(LBi:,LBj:,:)
       real(r8), intent(inout) :: hsn(LBi:,LBj:,:)
       real(r8), intent(inout) :: ti(LBi:,LBj:,:)
-      real(r8), intent(inout) :: sfwat(LBi:,LBj:,:)
       real(r8), intent(inout) :: ageice(LBi:,LBj:,:)
 #   endif
 #  endif
@@ -276,15 +254,9 @@
       real(r8), intent(in) :: vmask(LBi:UBi,LBj:UBj)
 #  endif
 #  ifdef WET_DRY
-      real(r8), intent(in) :: rmask_wet(LBi:UBi,LBj:UBj)
+      real(r8), intent(in)    :: rmask_wet(LBi:UBi,LBj:UBj)
       real(r8), intent(inout) :: umask_wet(LBi:UBi,LBj:UBj)
       real(r8), intent(inout) :: vmask_wet(LBi:UBi,LBj:UBj)
-#   ifdef SOLVE3D
-      real(r8), intent(inout) :: utmask_wet(LBi:UBi,LBj:UBj)
-      real(r8), intent(inout) :: vtmask_wet(LBi:UBi,LBj:UBj)
-      real(r8), intent(inout) :: umask_diff(LBi:UBi,LBj:UBj)
-      real(r8), intent(inout) :: vmask_diff(LBi:UBi,LBj:UBj)
-#   endif
 #  endif
 #  ifdef SOLVE3D
       real(r8), intent(in) :: Hz(LBi:UBi,LBj:UBj,N(ng))
@@ -320,7 +292,6 @@
       real(r8), intent(inout) :: hi(LBi:UBi,LBj:UBj,2)
       real(r8), intent(inout) :: hsn(LBi:UBi,LBj:UBj,2)
       real(r8), intent(inout) :: ti(LBi:UBi,LBj:UBj,2)
-      real(r8), intent(inout) :: sfwat(LBi:UBi,LBj:UBj,2)
       real(r8), intent(inout) :: ageice(LBi:UBi,LBj:UBj,2)
 #   endif
 #  endif
@@ -330,132 +301,18 @@
 !
 !  Local variable declarations.
 !
-      integer :: i, ic, is, itrc, j, k
+      integer :: i, ic, itrc, j, k
 # if defined SEDIMENT || defined BBL_MODEL
       integer :: ised
 # endif
 
-      real(r8) :: cff1, cff2, cff3, cff4, cff5, cff6
+      real(r8) :: cff1, cff2, cff3, cff4, cff5, cff6, cff7
 # ifdef SOLVE3D
       real(r8), dimension(IminS:ImaxS,0:N(ng)) :: CF
       real(r8), dimension(IminS:ImaxS,0:N(ng)) :: DC
 # endif
-# ifdef WET_DRY
-      real(r8), dimension(IminS:ImaxS,JminS:JmaxS) :: wetdry
-# endif
 
 # include "set_bounds.h"
-
-# ifdef WET_DRY
-      DO j=JstrT,JendT
-        DO i=Istr,IendT
-          cff1=rmask_wet(i-1,j)+rmask_wet(i,j)
-#  ifdef SOLVE3D
-          umask_diff(i,j) = 1.0_r8
-          IF (cff1.lt.2.0_r8) THEN
-            umask_diff(i,j) = 0.0_r8
-          END IF
-#   ifdef NO_DRY_TRACER_CHANGE
-          utmask_wet(i,j) = 1.0_r8
-          IF (cff1.lt.2.0_r8) THEN
-            utmask_wet(i,j) = 0.0_r8
-          END IF
-#   else
-          utmask_wet(i,j) = umask(i,j)
-#   endif
-#  endif
-          IF (cff1.eq.1.0_r8) THEN
-            cff1=rmask_wet(i-1,j)-rmask_wet(i,j)
-          END IF
-          cff5=ABS(ABS(cff1)-1.0_r8)
-          cff6=0.5_r8+DSIGN(0.5_r8,ubar(i,j,kstp))*cff1
-          umask_wet(i,j)=0.5_r8*cff1*cff5+cff6*(1.0_r8-cff5)
-        END DO
-      END DO
-      DO j=Jstr,JendT
-        DO i=IstrT,IendT
-          cff1=rmask_wet(i,j-1)+rmask_wet(i,j)
-#  ifdef SOLVE3D
-          vmask_diff(i,j) = 1.0_r8
-          IF (cff1.lt.2.0_r8) THEN
-            vmask_diff(i,j) = 0.0_r8
-          END IF
-#   ifdef NO_DRY_TRACER_CHANGE
-          vtmask_wet(i,j) = 1.0_r8
-          IF (cff1.lt.2.0_r8) THEN
-            vtmask_wet(i,j) = 0.0_r8
-          END IF
-#   else
-          vtmask_wet(i,j) = vmask(i,j)
-#   endif
-#  endif
-          IF (cff1.eq.1.0_r8) THEN
-            cff1=rmask_wet(i,j-1)-rmask_wet(i,j)
-          END IF
-          cff5=ABS(ABS(cff1)-1.0_r8)
-          cff6=0.5_r8+DSIGN(0.5_r8,vbar(i,j,kstp))*cff1
-          vmask_wet(i,j)=0.5_r8*cff1*cff5+cff6*(1.0_r8-cff5)
-        END DO
-      END DO
-!
-!  Insure that masks at mass point source locations are set to water.
-!
-        IF (LuvSrc(ng)) THEN
-          DO is=1,Nsrc(ng)
-            i=SOURCES(ng)%Isrc(is)
-            j=SOURCES(ng)%Jsrc(is)
-            IF (((IstrR.le.i).and.(i.le.IendR)).and.                    &
-     &          ((JstrR.le.j).and.(j.le.JendR))) THEN
-#  ifdef SOLVE3d
-              IF (INT(SOURCES(ng)%Dsrc(is)).eq.0) THEN
-                utmask_wet(i,j)=1.0_r8
-              ELSE
-                vtmask_wet(i,j)=1.0_r8
-              END IF
-#  endif
-            END IF
-          END DO
-        END IF
-      IF (EWperiodic(ng).or.NSperiodic(ng)) THEN
-        CALL exchange_u2d_tile (ng, tile,                               &
-     &                          LBi, UBi, LBj, UBj,                     &
-     &                          umask_wet)
-        CALL exchange_v2d_tile (ng, tile,                               &
-     &                          LBi, UBi, LBj, UBj,                     &
-     &                          vmask_wet)
-      END IF
-#  ifdef DISTRIBUTE
-      CALL mp_exchange2d (ng, tile, model, 2,                           &
-     &                    LBi, UBi, LBj, UBj,                           &
-     &                    NghostPoints,                                 &
-     &                    EWperiodic(ng), NSperiodic(ng),               &
-     &                    umask_wet, vmask_wet)
-#  endif
-#  ifdef SOLVE3D
-      IF (EWperiodic(ng).or.NSperiodic(ng)) THEN
-        CALL exchange_u2d_tile (ng, tile,                               &
-     &                          LBi, UBi, LBj, UBj,                     &
-     &                          utmask_wet)
-        CALL exchange_v2d_tile (ng, tile,                               &
-     &                          LBi, UBi, LBj, UBj,                     &
-     &                          vtmask_wet)
-        CALL exchange_u2d_tile (ng, tile,                               &
-     &                          LBi, UBi, LBj, UBj,                     &
-     &                          umask_diff)
-        CALL exchange_v2d_tile (ng, tile,                               &
-     &                          LBi, UBi, LBj, UBj,                     &
-     &                          vmask_diff)
-      END IF
-#   ifdef DISTRIBUTE
-      CALL mp_exchange2d (ng, tile, model, 4,                           &
-     &                    LBi, UBi, LBj, UBj,                           &
-     &                    NghostPoints,                                 &
-     &                    EWperiodic(ng), NSperiodic(ng),               &
-     &                    utmask_wet, vtmask_wet,                       &
-     &                    umask_diff, vmask_diff)
-#   endif
-#  endif
-# endif
 
 # ifdef SOLVE3D
 !
@@ -468,10 +325,11 @@
           DO k=1,N(ng)
             DO i=IstrM,IendB
               cff1=u(i,j,k,nstp)
-# ifdef WET_DRY
-              cff1=cff1*umask_wet(i,j)
-# elif defined MASKING
+#  ifdef MASKING
               cff1=cff1*umask(i,j)
+#  endif
+#  ifdef WET_DRY
+              cff1=cff1*umask_wet(i,j)
 #  endif
               u(i,j,k,nstp)=cff1
               u(i,j,k,nnew)=cff1
@@ -482,10 +340,11 @@
             DO k=1,N(ng)
               DO i=IstrB,IendB
                 cff2=v(i,j,k,nstp)
-# ifdef WET_DRY
-                cff2=cff2*vmask_wet(i,j)
-# elif defined MASKING
+#  ifdef MASKING
                 cff2=cff2*vmask(i,j)
+#  endif
+#  ifdef WET_DRY
+                cff2=cff2*vmask_wet(i,j)
 #  endif
                 v(i,j,k,nstp)=cff2
                 v(i,j,k,nnew)=cff2
@@ -545,6 +404,7 @@
      &                    u(:,:,:,nnew), v(:,:,:,nnew))
 #  endif
 # endif
+
 # ifdef SOLVE3D
 !
 !-----------------------------------------------------------------------
@@ -571,10 +431,11 @@
           DO i=IstrM,IendB
             cff1=1.0_r8/DC(i,0)
             cff2=CF(i,0)*cff1
-# ifdef WET_DRY
-            cff2=cff2*umask_wet(i,j)
-# elif defined MASKING
+#  ifdef MASKING
             cff2=cff2*umask(i,j)
+#  endif
+#  ifdef WET_DRY
+            cff2=cff2*umask_wet(i,j)
 #  endif
             ubar(i,j,kstp)=cff2
             ubar(i,j,knew)=cff2
@@ -595,10 +456,11 @@
             DO i=IstrB,IendB
               cff1=1.0_r8/DC(i,0)
               cff2=CF(i,0)*cff1
-# ifdef WET_DRY
-              cff2=cff2*vmask_wet(i,j)
-# elif defined MASKING
+#  ifdef MASKING
               cff2=cff2*vmask(i,j)
+#  endif
+#  ifdef WET_DRY
+              cff2=cff2*vmask_wet(i,j)
 #  endif
               vbar(i,j,kstp)=cff2
               vbar(i,j,knew)=cff2
@@ -672,10 +534,11 @@
         DO j=JstrB,JendB
           DO i=IstrM,IendB
             cff1=ubar(i,j,kstp)
-# ifdef WET_DRY
-            cff1=cff1*umask_wet(i,j)
-# elif defined MASKING
+#  ifdef MASKING
             cff1=cff1*umask(i,j)
+#  endif
+#  ifdef WET_DRY
+            cff1=cff1*umask_wet(i,j)
 #  endif
             ubar(i,j,kstp)=cff1
             ubar(i,j,krhs)=cff1
@@ -683,10 +546,11 @@
           IF (j.ge.JstrM) THEN
             DO i=IstrB,IendB
               cff2=vbar(i,j,kstp)
-# ifdef WET_DRY
-              cff2=cff2*vmask_wet(i,j)
-# elif defined MASKING
+#  ifdef MASKING
               cff2=cff2*vmask(i,j)
+#  endif
+#  ifdef WET_DRY
+              cff2=cff2*vmask_wet(i,j)
 #  endif
               vbar(i,j,kstp)=cff2
               vbar(i,j,krhs)=cff2
@@ -814,6 +678,7 @@
 !!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !#  ifdef T_PASSIVE
 !         ELSE
+!        IF (itrc .ge. inert(1) .and. itrc .le. inert(NPT)) THEN
 !!         else condition added by Weifeng Zhang for passive tracer
 !!         boundary condition
 !          CALL pt3dbc_tile (ng, tile, itrc,                             &
@@ -954,15 +819,13 @@
             cff2=hi(i,j,nstp)
             cff3=hsn(i,j,nstp)
             cff4=ti(i,j,nstp)
-            cff5=sfwat(i,j,nstp)
-            cff6=ageice(i,j,nstp)
+            cff7=ageice(i,j,nstp)
 #  ifdef MASKING
             cff1=cff1*rmask(i,j)
             cff2=cff2*rmask(i,j)
             cff3=cff3*rmask(i,j)
             cff4=cff4*rmask(i,j)
-            cff5=cff5*rmask(i,j)
-            cff6=cff6*rmask(i,j)
+            cff7=cff7*rmask(i,j)
 #  endif
             ai(i,j,nstp)=cff1
             ai(i,j,nnew)=cff1
@@ -972,10 +835,8 @@
             hsn(i,j,nnew)=cff3
             ti(i,j,nstp)=cff4
             ti(i,j,nnew)=cff4
-            sfwat(i,j,nstp)=cff5
-            sfwat(i,j,nnew)=cff5
-            ageice(i,j,nstp)=cff6
-            ageice(i,j,nnew)=cff6
+            ageice(i,j,nstp)=cff7
+            ageice(i,j,nnew)=cff7
           END DO
         END DO
       END IF
@@ -1001,9 +862,6 @@
      &                            ti(:,:,i))
           CALL exchange_r2d_tile (ng, tile,                             &
      &                            LBi, UBi, LBj, UBj,                   &
-     &                            sfwat(:,:,i))
-          CALL exchange_r2d_tile (ng, tile,                             &
-     &                            LBi, UBi, LBj, UBj,                   &
      &                            ageice(:,:,i))
         END DO
       END IF
@@ -1013,11 +871,11 @@
      &                      NghostPoints,                               &
      &                      EWperiodic(ng), NSperiodic(ng),             &
      &                      ui, vi, ai, hi)
-        CALL mp_exchange3d (ng, tile, model, 4,                         &
+        CALL mp_exchange3d (ng, tile, model, 3,                         &
      &                      LBi, UBi, LBj, UBj, 1, 2,                   &
      &                      NghostPoints,                               &
      &                      EWperiodic(ng), NSperiodic(ng),             &
-     &                      hsn, ti, sfwat, ageice)
+     &                      hsn, ti, ageice)
 #  endif
 # endif
 
@@ -1095,7 +953,7 @@
 # include "tile.h"
 !
 # ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 2)
+      CALL wclock_on (ng, iNLM, 2, __LINE__, __FILE__)
 # endif
       CALL ini_zeta_tile (ng, tile, model,                              &
      &                    LBi, UBi, LBj, UBj,                           &
@@ -1118,7 +976,7 @@
 # endif
      &                    OCEAN(ng) % zeta)
 # ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 2)
+      CALL wclock_off (ng, iNLM, 2, __LINE__, __FILE__)
 # endif
 
       RETURN
@@ -1245,9 +1103,9 @@
 # ifdef WET_DRY
             IF (cff1.le.(Dcrit(ng)-h(i,j))) THEN
               cff1=Dcrit(ng)-h(i,j)
-              rmask_wet(i,j)=0.0_r8
-            ELSE
-              rmask_wet(i,j)=1.0_r8*rmask(i,j)
+!!            rmask_wet(i,j)=0.0_r8
+!!          ELSE
+!!            rmask_wet(i,j)=1.0_r8*rmask(i,j)
             END IF
 # endif
             zeta(i,j,kstp)=cff1

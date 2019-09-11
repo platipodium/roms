@@ -4,7 +4,7 @@
 
 !
 !=====================================================================
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group
 !================================================ Hernan G. Arango ===
 !                                                                    !
 !  This routine computes the bulk parameterization of surface wind   !
@@ -57,7 +57,7 @@
 # include "tile.h"
 !
 # ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 17)
+      CALL wclock_on (ng, iNLM, 17, __LINE__, __FILE__)
 # endif
       CALL ncep_flux_tile (ng, tile,                                    &
      &                     LBi, UBi, LBj, UBj,                          &
@@ -99,7 +99,6 @@
      &                     FORCES(ng) % qai_n,                          &
      &                     FORCES(ng) % p_e_n,                          &
      &                     ICE(ng) % hsn,   ICE(ng) % tis,              &
-     &                     ICE(ng) % sfwat,                             &
      &                     ICE(ng) % coef_ice_heat,                     &
      &                     ICE(ng) % rhs_ice_heat,                      &
      &                     FORCES(ng) % snow_n,                         &
@@ -118,7 +117,7 @@
      &                     OCEAN(ng) % rho                              &
      &                     )
 # ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 17)
+      CALL wclock_off (ng, iNLM, 17, __LINE__, __FILE__)
 # endif
       RETURN
       END SUBROUTINE ncep_flux
@@ -157,7 +156,7 @@
      &                           qao_n,                                 &
      &                           qai_n,                                 &
      &                           p_e_n,                                 &
-     &                           hsn, tis, sfwat,                       &
+     &                           hsn, tis,                              &
      &                           coef_ice_heat, rhs_ice_heat, snow_n,   &
 # endif
      &                           tau_aix_n, tau_aiy_n,                  &
@@ -235,7 +234,6 @@
       real(r8), intent(out) :: p_e_n(LBi:,LBj:)
       real(r8), intent(in) :: hsn(LBi:,LBj:,:)
       real(r8), intent(in) :: tis(LBi:,LBj:)
-      real(r8), intent(in) :: sfwat(LBi:,LBj:,:)
       real(r8), intent(out) :: coef_ice_heat(LBi:,LBj:)
       real(r8), intent(out) :: rhs_ice_heat(LBi:,LBj:)
       real(r8), intent(out) :: snow_n(LBi:,LBj:)
@@ -297,11 +295,10 @@
       real(r8), intent(out) :: p_e_n(LBi:UBi,LBj:UBj)
       real(r8), intent(in) :: hsn(LBi:UBi,LBj:UBj,2)
       real(r8), intent(in) :: tis(LBi:UBi,LBj:UBj)
-      real(r8), intent(in) :: sfwat(LBi:UBi,LBj:UBj,2)
       real(r8), intent(out) :: coef_ice_heat(LBi:UBi,LBj:UBj)
       real(r8), intent(out) :: rhs_ice_heat(LBi:UBi,LBj:UBj)
       real(r8), intent(out) :: snow_n(LBi:UBi,LBj:UBj)
-#    endif
+#   endif
       real(r8), intent(out) :: tau_aix_n(LBi:UBi,LBj:UBj)
       real(r8), intent(out) :: tau_aiy_n(LBi:UBi,LBj:UBj)
       real(r8), intent(out) :: sustr_aw(LBi:UBi,LBj:UBj)
@@ -335,7 +332,7 @@
       real(r8) :: hsn_n
       real(r8) :: thki_n
       real(r8) :: thksn_n
-      real(r8) :: sfwat_n
+      real(r8) :: apond_n
       real(r8) :: rhoO
       real(r8), parameter :: alb_i_dry=0.65_r8
       real(r8), parameter :: alb_i_wet=0.60_r8
@@ -399,11 +396,9 @@
 #if defined ICE_MODEL && defined ICE_THERMO
           hice_n = hi(i,j,liold)
           hsn_n = hsn(i,j,liold)
-          sfwat_n = sfwat(i,j,liold)
 #else
           hice_n = 3._r8*fice
           hsn_n = 0.2_r8*fice
-          sfwat_n = 0._r8
 #endif
           thki_n = hice_n/(MAX(fice,0.01_r8))
           thksn_n = hsn_n/(MAX(fice,0.01_r8))
@@ -621,7 +616,7 @@
           IF (thki_n.GE.2._r8) albi=0.561632_r8
 !approximated values for albsn(depends on COSZ, but small variation)
           albsn=0.83_r8
-          IF (sfwat_n.GT.0._r8) THEN
+          IF (apond_n.GT.0._r8) THEN
             IF (thksn_n.GE.0.1_r8) THEN
               albsn=0.701009_r8
             ELSE
@@ -630,10 +625,10 @@
           ENDIF
           albs=albi
           IF (hsn_n.GT.0._r8) albs=albsn
-!          IF (sfwat_n.GT.0._r8) albs=0.100737_r8                        &
-!     &         +0.518_r8*EXP(-8.1_r8 *sfwat_n-0.47_r8)                  &
-!     &         +0.341_r8*EXP(-31.8_r8*sfwat_n-0.94_r8)                  &
-!     &         +0.131_r8*EXP(-2.6_r8 *sfwat_n-3.82_r8)
+!          IF (apond_n.GT.0._r8) albs=0.100737_r8                        &
+!     &         +0.518_r8*EXP(-8.1_r8 *apond_n-0.47_r8)                  &
+!     &         +0.341_r8*EXP(-31.8_r8*apond_n-0.94_r8)                  &
+!     &         +0.131_r8*EXP(-2.6_r8 *apond_n-3.82_r8)
 !
 # else
       cff1 = alb_s_wet - alb_s_dry

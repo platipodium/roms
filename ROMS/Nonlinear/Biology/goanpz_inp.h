@@ -11,6 +11,7 @@
       USE mod_biology
       USE mod_ncparam
       USE mod_scalars
+      USE inp_decode_mod
 !
       implicit none
 !
@@ -25,17 +26,15 @@
       integer :: iTrcStr, iTrcEnd
       integer :: i, ifield, igrid, is, itracer, itrc, ng, nline, status
 
-      integer :: decode_line, load_i, load_l, load_r
-
       logical, dimension(NBT,Ngrids) :: Ltrc
 
       real(r8), dimension(NBT,Ngrids) :: Rbio
 
-      real(r8), dimension(200) :: Rval
+      real(r8), dimension(nRval) :: Rval
 
       character (len=40 ) :: KeyWord
       character (len=256) :: line
-      character (len=256), dimension(200) :: Cval
+      character (len=256), dimension(nCval) :: Cval
 !
 !-----------------------------------------------------------------------
 !  Initialize.
@@ -66,8 +65,8 @@
 !----------------------------------
 !  Vertical mixing tuning parameter
 !----------------------------------
-          ELSE IF (TRIM(KeyWord).eq.'VertMixIncr') THEN 
-            Npts=load_r(Nval, Rval, 1, VertMixIncr)         
+          ELSE IF (TRIM(KeyWord).eq.'VertMixIncr') THEN
+            Npts=load_r(Nval, Rval, 1, VertMixIncr)
 !------------------
 !  Bio- conversions
 !------------------
@@ -75,7 +74,7 @@
             Npts=load_r(Nval, Rval, 1, xi)
           ELSE IF (TRIM(KeyWord).eq.'ccr') THEN
             Npts=load_r(Nval, Rval, 1, ccr)
-          ELSE IF (TRIM(KeyWord).eq.'ccrPhL') THEN 
+          ELSE IF (TRIM(KeyWord).eq.'ccrPhL') THEN
             Npts=load_r(Nval, Rval, 1, ccrPhL)
 !-------------------------
 !  extinction coefficients
@@ -389,7 +388,6 @@
               Npts=load_lbc(Nval, Cval, line, nline, ifield, igrid,     &
      &                      idbio(iTrcStr), idbio(iTrcEnd),             &
      &                      Vname(1,idTvar(idbio(itracer))), LBC)
-#ifdef TCLIMATOLOGY
             CASE ('LtracerCLM')
               Npts=load_l(Nval, Cval, NBT*Ngrids, Ltrc)
               DO ng=1,Ngrids
@@ -398,8 +396,6 @@
                   LtracerCLM(i,ng)=Ltrc(itrc,ng)
                 END DO
               END DO
-#endif
-#ifdef TS_PSOURCE
             CASE ('LtracerSrc')
               Npts=load_l(Nval, Cval, NBT*Ngrids, Ltrc)
               DO ng=1,Ngrids
@@ -408,7 +404,6 @@
                   LtracerSrc(i,ng)=Ltrc(itrc,ng)
                 END DO
               END DO
-#endif
           ELSE IF (TRIM(KeyWord).eq.'Hout(idTvar)') THEN
             Npts=load_l(Nval, Cval, NBT*Ngrids, Ltrc)
             DO ng=1,Ngrids
@@ -497,7 +492,6 @@
      &              'Nudging/relaxation time scale (days)',             &
      &              'for tracer ', i, TRIM(Vname(1,idTvar(i)))
             END DO
-#ifdef TCLIMATOLOGY
             DO itrc=1,NBT
               i=idbio(itrc)
 	      IF (LtracerCLM(i,ng)) THEN
@@ -522,15 +516,12 @@
      &              TRIM(Vname(1,idTvar(i)))
               END IF
             END DO
-#endif
-#ifdef TS_PSOURCE
             DO itrc=1,NBT
               i=idbio(itrc)
               WRITE (out,100) LtracerSrc(i,ng), 'LtracerSrc',           &
      &              i, 'Processing point sources/Sink on tracer ', i,   &
      &              TRIM(Vname(1,idTvar(i)))
             END DO
-#endif
             DO itrc=1,NBT
               i=idbio(itrc)
               IF (Hout(idTvar(i),ng)) WRITE (out,60)                    &

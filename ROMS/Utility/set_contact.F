@@ -4,7 +4,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -22,6 +22,8 @@
       USE mod_netcdf
       USE mod_scalars
 !
+      USE strings_mod, ONLY : FoundError, find_string
+!
       implicit none
 !
 !  Imported variable declarations.
@@ -37,8 +39,9 @@
 
       logical, dimension((Ngrids-1)*2) :: Linterpolate
 !
-      integer :: cr, dg, ibry, ig, ip,  m, rg
-      integer :: my_Ncontact, my_Ngrids, my_Nweights
+      integer :: cr, dg, ibry, ic, ig, ip,  m, rg, vindex
+      integer :: my_Ncontact, my_Ngrids, my_nLweights, my_nQweights
+      integer :: NGCid
 
       integer, dimension(Ngrids) :: my_Lm, my_Mm
       integer, dimension(Ngrids) :: refine_factor
@@ -47,7 +50,10 @@
       integer, dimension((Ngrids-1)*2) :: NpointsU
       integer, dimension((Ngrids-1)*2) :: NpointsV
 !
-      real(r8), allocatable :: Hweight(:,:)
+      real(r8), allocatable :: Lweight(:,:)
+# ifdef QUADRATIC_WEIGHTS
+      real(r8), allocatable :: Qweight(:,:)
+# endif
       real(r8), allocatable :: Xrg(:), Yrg(:)
       real(r8), allocatable :: angle(:)
       real(r8), allocatable :: dmde(:), dndx(:)
@@ -61,11 +67,32 @@
 !  arrays.
 !-----------------------------------------------------------------------
 !
+!  Open contact points NetCDF file for reading.
+!
+      CALL netcdf_open (ng, model, NGCname, 0, NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) THEN
+        WRITE (stdout,20) TRIM(NGCname)
+  20    FORMAT (/,' READ_CONTACT - unable to open contact points ',     &
+     &            ' NetCDF file: ',a)
+        RETURN
+      END IF
+!
+!  Inquire about the variables.
+!
+      CALL netcdf_inq_var (ng, model, NGCname,                          &
+     &                     ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
+!
 !  Check if the number of nested grids is correct.
 !
-      CALL netcdf_get_dim (ng, model, NGCname, 'Ngrids',                &
-     &                     my_Ngrids)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_dim (ng, model, NGCname,                          &
+     &                     ncid = NGCid,                                &
+     &                     DimName = 'Ngrids',                          &
+     &                     DimSize = my_Ngrids)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (my_Ngrids.ne.Ngrids) THEN
         IF (Master) THEN
@@ -80,9 +107,12 @@
 !
 !  Check number of contact regions, Ncontact = (Ngrids-1)*2.
 !
-      CALL netcdf_get_dim (ng, model, NGCname, 'Ncontact',              &
-     &                     my_Ncontact)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_dim (ng, model, NGCname,                          &
+     &                     ncid = NGCid,                                &
+     &                     DimName = 'Ncontact',                        &
+     &                     DimSize = my_Ncontact)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (my_Ncontact.ne.(Ngrids-1)*2) THEN
         IF (Master) THEN
@@ -94,37 +124,69 @@
       END IF
       Ncontact=(Ngrids-1)*2
 !
-!  Check number of contact points interpolation weights. Currently,
-!  only linear interpolation is allowed and four weights are needed.
+!  Check number of contact points for bilinear interpolation weights.
 !
-      CALL netcdf_get_dim (ng, model, NGCname, 'Nweights',              &
-     &                     my_Nweights)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_dim (ng, model, NGCname,                          &
+     &                     ncid = NGCid,                                &
+     &                     DimName = 'nLweights',                       &
+     &                     DimSize = my_nLweights)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
-      IF (my_Nweights.ne.4) THEN
+      IF (my_nLweights.ne.4) THEN
         IF (Master) THEN
-          WRITE (stdout,10) 'inconsistent parameter, Nweights = ',      &
-     &                      4, my_Nweights
+          WRITE (stdout,10) 'inconsistent parameter, nLweights = ',     &
+     &                      4, my_nLweights
         END IF
         exit_flag=5
         RETURN
       END IF
+
+# ifdef QUADRATIC_WEIGHTS
+!
+!  Check number of contact points for quadratic interpolation weights.
+!
+      CALL netcdf_get_dim (ng, model, NGCname,                          &
+     &                     ncid = NGCid,                                &
+     &                     DimName = 'nQweights',                       &
+     &                     DimSize = my_nQweights)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
+
+      IF (my_nQweights.ne.9) THEN
+        IF (Master) THEN
+          WRITE (stdout,10) 'inconsistent parameter, nQweights = ',     &
+     &                      9, my_nQweights
+        END IF
+        exit_flag=5
+        RETURN
+      END IF
+# endif
 !
 !  Get number of contact points in input NetCDF file.  It may include
 !  or not contact point over land when land/sea masking is activated.
 !
-      CALL netcdf_get_dim (ng, model, NGCname, 'datum',                 &
-     &                     NCdatum)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_dim (ng, model, NGCname,                          &
+     &                     ncid = NGCid,                                &
+     &                     DimName = 'datum',                           &
+     &                     DimSize = NCdatum)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in grid dimensions and if the grid order is correct.  The order
 !  of the grids is important in nesting.
 !
-      CALL netcdf_get_ivar (ng, model, NGCname, 'Lm', my_Lm)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'Lm',                   &
+     &                      my_Lm,                                      &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
-      CALL netcdf_get_ivar (ng, model, NGCname, 'Mm', my_Mm)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'Mm',                   &
+     &                      my_Mm,                                      &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       DO ig=1,Ngrids
         IF (my_Lm(ig).ne.Lm(ig)) THEN
@@ -148,96 +210,184 @@
 !  Read in nesting types logical switches, 1:Ngrids.
 !
       CALL netcdf_get_lvar (ng, model, NGCname, 'coincident',           &
-     &                      Lcoincident)
-      IF (exit_flag.ne.NoError) RETURN
+     &                      Lcoincident,                                &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       CALL netcdf_get_lvar (ng, model, NGCname, 'composite',            &
-     &                      Lcomposite)
-      IF (exit_flag.ne.NoError) RETURN
+     &                      Lcomposite,                                 &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       CALL netcdf_get_lvar (ng, model, NGCname, 'mosaic',               &
-     &                      Lmosaic)
-      IF (exit_flag.ne.NoError) RETURN
+     &                      Lmosaic,                                    &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       CALL netcdf_get_lvar (ng, model, NGCname, 'refinement',           &
-     &                      Lrefinement)
-      IF (exit_flag.ne.NoError) RETURN
+     &                      Lrefinement,                                &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in refinement factor from donor grid, 1:Ngrids.
 !
       CALL netcdf_get_ivar (ng, model, NGCname, 'refine_factor',        &
-     &                      refine_factor)
-      IF (exit_flag.ne.NoError) RETURN
+     &                      refine_factor,                              &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in vertical interpolation at contact points switch, 1:Ncontact.
 !
       CALL netcdf_get_lvar (ng, model, NGCname, 'interpolate',          &
-     &                      Linterpolate)
-      IF (exit_flag.ne.NoError) RETURN
+     &                      Linterpolate,                               &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in data donor and data receiver grid number, 1:Ncontact.
 !
       IF (.not.allocated(donor_grid)) THEN
         allocate ( donor_grid((Ngrids-1)*2) )
+        Dmem(ng)=Dmem(ng)+REAL((Ngrids-1)*2,r8)
       END IF
       CALL netcdf_get_ivar (ng, model, NGCname, 'donor_grid',           &
-     &                      donor_grid)
-      IF (exit_flag.ne.NoError) RETURN
+     &                      donor_grid,                                 &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (.not.allocated(receiver_grid)) THEN
         allocate ( receiver_grid((Ngrids-1)*2) )
+        Dmem(ng)=Dmem(ng)+REAL((Ngrids-1)*2,r8)
       END IF
       CALL netcdf_get_ivar (ng, model, NGCname, 'receiver_grid',        &
-     &                      receiver_grid)
-      IF (exit_flag.ne.NoError) RETURN
+     &                      receiver_grid,                              &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
+!
+!  Read in donor grid (I,J) indices at PSI points used to extract
+!  refined grid. Values have a fill value of -999 if not applicable.
+!
+      IF (.not.allocated(I_left)) THEN
+        allocate ( I_left(Ngrids) )
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+      END IF
+      CALL netcdf_get_ivar (ng, model, NGCname, 'I_left',               &
+     &                      I_left,                                     &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
+!
+      IF (.not.allocated(I_right)) THEN
+        allocate ( I_right(Ngrids) )
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+      END IF
+      CALL netcdf_get_ivar (ng, model, NGCname, 'I_right',              &
+     &                      I_right,                                    &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
+!
+      IF (.not.allocated(J_bottom)) THEN
+        allocate ( J_bottom(Ngrids) )
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+      END IF
+      CALL netcdf_get_ivar (ng, model, NGCname, 'J_bottom',             &
+     &                      J_bottom,                                   &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
+!
+      IF (.not.allocated(J_top)) THEN
+        allocate ( J_top(Ngrids) )
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+      END IF
+      CALL netcdf_get_ivar (ng, model, NGCname, 'J_top',                &
+     &                      J_top,                                      &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in starting and ending contact points (RHO-, U-, V-) index in
 !  packed data vectors for each contact region, 1:Ncontact.
 !
       IF (.not.allocated(NstrR)) THEN
         allocate ( NstrR((Ngrids-1)*2) )
+        Dmem(ng)=Dmem(ng)+REAL((Ngrids-1)*2,r8)
       END IF
-      CALL netcdf_get_ivar (ng, model, NGCname, 'NstrR', NstrR)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'NstrR',                &
+     &                      NstrR,                                      &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
       IF (.not.allocated(NendR)) THEN
         allocate ( NendR((Ngrids-1)*2) )
+        Dmem(ng)=Dmem(ng)+REAL((Ngrids-1)*2,r8)
       END IF
-      CALL netcdf_get_ivar (ng, model, NGCname, 'NendR', NendR)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'NendR',                &
+     &                      NendR,                                      &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
       IF (.not.allocated(NstrU)) THEN
         allocate ( NstrU((Ngrids-1)*2) )
+        Dmem(ng)=Dmem(ng)+REAL((Ngrids-1)*2,r8)
       END IF
-      CALL netcdf_get_ivar (ng, model, NGCname, 'NstrU', NstrU)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'NstrU',                &
+     &                      NstrU,                                      &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
       IF (.not.allocated(NendU)) THEN
         allocate ( NendU((Ngrids-1)*2) )
+        Dmem(ng)=Dmem(ng)+REAL((Ngrids-1)*2,r8)
       END IF
-      CALL netcdf_get_ivar (ng, model, NGCname, 'NendU', NendU)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'NendU',                &
+     &                      NendU,                                      &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
       IF (.not.allocated(NstrV)) THEN
         allocate ( NstrV((Ngrids-1)*2) )
+        Dmem(ng)=Dmem(ng)+REAL((Ngrids-1)*2,r8)
       END IF
-      CALL netcdf_get_ivar (ng, model, NGCname, 'NstrV', NstrV)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'NstrV',                &
+     &                      NstrV,                                      &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
       IF (.not.allocated(NendV)) THEN
         allocate ( NendV((Ngrids-1)*2) )
+        Dmem(ng)=Dmem(ng)+REAL((Ngrids-1)*2,r8)
       END IF
-      CALL netcdf_get_ivar (ng, model, NGCname, 'NendV', NendV)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'NendV',                &
+     &                      NendV,                                      &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in contact region number for each contact point, 1:NCdatum.
 !
       IF (.not.allocated(contact_region)) THEN
         allocate ( contact_region(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
       CALL netcdf_get_ivar (ng, model, NGCname, 'contact_region',       &
-     &                      contact_region)
-      IF (exit_flag.ne.NoError) RETURN
+     &                      contact_region,                             &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in flag (1:NCdatum) to determine if the contact point is at
 !  receiver grid interior (zero value) or on the boundary (1:western,
@@ -245,123 +395,209 @@
 !
       IF (.not.allocated(on_boundary)) THEN
         allocate ( on_boundary(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
       CALL netcdf_get_ivar (ng, model, NGCname, 'on_boundary',          &
-     &                      on_boundary)
-      IF (exit_flag.ne.NoError) RETURN
+     &                      on_boundary,                                &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in I-left and J-bottom indices of donor cell containing contact
 !  point, 1:NCdatum.
 !
       IF (.not.allocated(Idg_cp)) THEN
         allocate ( Idg_cp(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_ivar (ng, model, NGCname, 'Idg', Idg_cp)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'Idg',                  &
+     &                      Idg_cp,                                     &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (.not.allocated(Jdg_cp)) THEN
         allocate ( Jdg_cp(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_ivar (ng, model, NGCname, 'Jdg', Jdg_cp)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'Jdg',                  &
+     &                      Jdg_cp,                                     &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in I- and J-indices of receiver grid contact point, 1:NCdatum.
 !
       IF (.not.allocated(Irg_cp)) THEN
         allocate ( Irg_cp(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_ivar (ng, model, NGCname, 'Irg', Irg_cp)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'Irg',                  &
+     &                      Irg_cp,                                     &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (.not.allocated(Jrg_cp)) THEN
         allocate ( Jrg_cp(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_ivar (ng, model, NGCname, 'Jrg', Jrg_cp)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_ivar (ng, model, NGCname, 'Jrg',                  &
+     &                      Jrg_cp,                                     &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in X- and Y-location of receiver grid contact point, 1:NCdatum.
 !
       IF (.not.allocated(Xrg)) THEN
         allocate ( Xrg(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'Xrg', Xrg)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'Xrg',                  &
+     &                      Xrg,                                        &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (.not.allocated(Yrg)) THEN
         allocate ( Yrg(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'Yrg', Yrg)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'Yrg',                  &
+     &                      Yrg,                                        &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
-!  Read in contact point horizontal interpolation weights, 1:NCdatum.
+!  Read in contact point horizontal linear interpolation weights,
+!  1:NCdatum.
 !
-      IF (.not.allocated(Hweight)) THEN
-        allocate ( Hweight(my_Nweights,NCdatum) )
+      IF (.not.allocated(Lweight)) THEN
+        allocate ( Lweight(my_nLweights,NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(my_nLweights*NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'Hweight', Hweight)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'Lweight',              &
+     &                      Lweight,                                    &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
+
+# ifdef QUADRATIC_WEIGHTS
+!
+!  Read in contact point horizontal quadratic interpolation weights,
+!  1:NCdatum.
+!
+      IF (.not.allocated(Qweight)) THEN
+        allocate ( Qweight(my_nQweights,NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(my_nQweights*NCdatum,r8)
+      END IF
+      CALL netcdf_get_fvar (ng, model, NGCname, 'Qweight',              &
+     &                      Qweight,                                    &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
+# endif
 !
 !  Read in contact point bathymetry at RHO-points, 1:NCdatum.
 !
       IF (.not.allocated(h)) THEN
         allocate ( h(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'h', h)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'h',                    &
+     &                      h,                                          &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in contact point Coriolis parameter at RHO-points, 1:NCdatum.
 !
       IF (.not.allocated(f)) THEN
         allocate ( f(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'f', f)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'f',                    &
+     &                      f,                                          &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in contact point curvilinar coordinates in XI- and ETA-direction
 !  at RHO-points, 1:NCdatum.
 !
       IF (.not.allocated(pm)) THEN
         allocate ( pm(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'pm', pm)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'pm',                   &
+     &                      pm,                                         &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (.not.allocated(pn)) THEN
         allocate ( pn(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'pn', pn)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'pn',                   &
+     &                      pn,                                         &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in contact point inverse metric factor in XI- and ETA-direction,
 !  1:NCdatum.
 !
       IF (.not.allocated(dndx)) THEN
         allocate ( dndx(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'dndx', dndx)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'dndx',                 &
+     &                      dndx,                                       &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (.not.allocated(dmde)) THEN
         allocate ( dmde(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'dmde', dmde)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'dmde',                 &
+     &                      dmde,                                       &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in contact point angle between XI-axis and EAST, 1:NCdatum.
 !
       IF (.not.allocated(angle)) THEN
         allocate ( angle(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'angle', angle)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'angle',                &
+     &                      angle,                                      &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Read in contact point land/sea mask, 1:NCdatum.
 !
       IF (.not.allocated(mask)) THEN
         allocate ( mask(NCdatum) )
+        Dmem(ng)=Dmem(ng)+REAL(NCdatum,r8)
       END IF
-      CALL netcdf_get_fvar (ng, model, NGCname, 'mask', mask)
-      IF (exit_flag.ne.NoError) RETURN
+      CALL netcdf_get_fvar (ng, model, NGCname, 'mask',                 &
+     &                      mask,                                       &
+     &                      ncid = NGCid)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
+!
+!  Close contact points NetCDF file.
+!
+      CALL netcdf_close (ng, model, NGCid, NGCname, .FALSE.)
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !-----------------------------------------------------------------------
 !  Unpack contact point data into nesting structures (type T_NGC).
@@ -371,6 +607,7 @@
 !
       IF (.not.allocated(NCpoints)) THEN
         allocate ( NCpoints(Ncontact) )
+        Dmem(ng)=Dmem(ng)+REAL(Ncontact,r8)
       END IF
       DO cr=1,Ncontact
         NpointsR(cr)=NendR(cr)-NstrR(cr)+1
@@ -384,6 +621,7 @@
       allocate ( Rcontact(Ncontact) )
       allocate ( Ucontact(Ncontact) )
       allocate ( Vcontact(Ncontact) )
+      Dmem(ng)=Dmem(ng)+3.0_r8*REAL(Ncontact,r8)
 !
 !  Allocate arrays in grid connectivity structure.
 !
@@ -407,20 +645,66 @@
         allocate ( Ucontact(cr) % Jdg(NpointsU(cr)) )
         allocate ( Vcontact(cr) % Jdg(NpointsV(cr)) )
 
+        Dmem(dg)=Dmem(dg)+4.0_r8*REAL(NpointsR(cr),r8)
+        Dmem(dg)=Dmem(dg)+4.0_r8*REAL(NpointsU(cr),r8)
+        Dmem(dg)=Dmem(dg)+4.0_r8*REAL(NpointsV(cr),r8)
+
 # ifdef SOLVE3D
         allocate ( Rcontact(cr) % Kdg(N(dg),NpointsR(cr)) )
         allocate ( Ucontact(cr) % Kdg(N(dg),NpointsU(cr)) )
         allocate ( Vcontact(cr) % Kdg(N(dg),NpointsV(cr)) )
+
+        Dmem(dg)=Dmem(dg)+REAL(N(dg)*NpointsR(cr),r8)
+        Dmem(dg)=Dmem(dg)+REAL(N(dg)*NpointsU(cr),r8)
+        Dmem(dg)=Dmem(dg)+REAL(N(dg)*NpointsV(cr),r8)
 # endif
 
-        allocate ( Rcontact(cr) % Hweight(4,NpointsR(cr)) )
-        allocate ( Ucontact(cr) % Hweight(4,NpointsU(cr)) )
-        allocate ( Vcontact(cr) % Hweight(4,NpointsV(cr)) )
+        allocate ( Rcontact(cr) % Lweight(4,NpointsR(cr)) )
+        allocate ( Ucontact(cr) % Lweight(4,NpointsU(cr)) )
+        allocate ( Vcontact(cr) % Lweight(4,NpointsV(cr)) )
+
+        Dmem(dg)=Dmem(dg)+4.0_r8*REAL(NpointsR(cr),r8)
+        Dmem(dg)=Dmem(dg)+4.0_r8*REAL(NpointsU(cr),r8)
+        Dmem(dg)=Dmem(dg)+4.0_r8*REAL(NpointsV(cr),r8)
+
+# ifdef WET_DRY
+        allocate ( Rcontact(cr) % LweightUnmasked(4,NpointsR(cr)) )
+        allocate ( Ucontact(cr) % LweightUnmasked(4,NpointsU(cr)) )
+        allocate ( Vcontact(cr) % LweightUnmasked(4,NpointsV(cr)) )
+
+        Dmem(dg)=Dmem(dg)+4.0_r8*REAL(NpointsR(cr),r8)
+        Dmem(dg)=Dmem(dg)+4.0_r8*REAL(NpointsU(cr),r8)
+        Dmem(dg)=Dmem(dg)+4.0_r8*REAL(NpointsV(cr),r8)
+# endif
+
+# ifdef QUADRATIC_WEIGHTS
+        allocate ( Rcontact(cr) % Qweight(9,NpointsR(cr)) )
+        allocate ( Ucontact(cr) % Qweight(9,NpointsU(cr)) )
+        allocate ( Vcontact(cr) % Qweight(9,NpointsV(cr)) )
+
+        Dmem(dg)=Dmem(dg)+9.0_r8*REAL(NpointsR(cr),r8)
+        Dmem(dg)=Dmem(dg)+9.0_r8*REAL(NpointsU(cr),r8)
+        Dmem(dg)=Dmem(dg)+9.0_r8*REAL(NpointsV(cr),r8)
+
+#  ifdef WET_DRY
+        allocate ( Rcontact(cr) % QweightUnmasked(9,NpointsR(cr)) )
+        allocate ( Ucontact(cr) % QweightUnmasked(9,NpointsU(cr)) )
+        allocate ( Vcontact(cr) % QweightUnmasked(9,NpointsV(cr)) )
+
+        Dmem(dg)=Dmem(dg)+9.0_r8*REAL(NpointsR(cr),r8)
+        Dmem(dg)=Dmem(dg)+9.0_r8*REAL(NpointsU(cr),r8)
+        Dmem(dg)=Dmem(dg)+9.0_r8*REAL(NpointsV(cr),r8)
+#  endif
+# endif
 
 # ifdef SOLVE3D
         allocate ( Rcontact(cr) % Vweight(2,N(dg),NpointsR(cr)) )
         allocate ( Ucontact(cr) % Vweight(2,N(dg),NpointsU(cr)) )
         allocate ( Vcontact(cr) % Vweight(2,N(dg),NpointsV(cr)) )
+
+        Dmem(dg)=Dmem(dg)+2.0_r8*REAL(N(dg)*NpointsR(cr),r8)
+        Dmem(dg)=Dmem(dg)+2.0_r8*REAL(N(dg)*NpointsU(cr),r8)
+        Dmem(dg)=Dmem(dg)+2.0_r8*REAL(N(dg)*NpointsV(cr),r8)
 # endif
       END DO
 !
@@ -456,10 +740,38 @@
           Rcontact(cr) % Jrg(m) = Jrg_cp(ip)
           Rcontact(cr) % Idg(m) = Idg_cp(ip)
           Rcontact(cr) % Jdg(m) = Jdg_cp(ip)
-          Rcontact(cr) % Hweight(1,m) = Hweight(1,ip)
-          Rcontact(cr) % Hweight(2,m) = Hweight(2,ip)
-          Rcontact(cr) % Hweight(3,m) = Hweight(3,ip)
-          Rcontact(cr) % Hweight(4,m) = Hweight(4,ip)
+# ifdef WET_DRY
+          Rcontact(cr) % LweightUnmasked(1,m) = Lweight(1,ip)
+          Rcontact(cr) % LweightUnmasked(2,m) = Lweight(2,ip)
+          Rcontact(cr) % LweightUnmasked(3,m) = Lweight(3,ip)
+          Rcontact(cr) % LweightUnmasked(4,m) = Lweight(4,ip)
+# endif
+          Rcontact(cr) % Lweight(1,m) = Lweight(1,ip)
+          Rcontact(cr) % Lweight(2,m) = Lweight(2,ip)
+          Rcontact(cr) % Lweight(3,m) = Lweight(3,ip)
+          Rcontact(cr) % Lweight(4,m) = Lweight(4,ip)
+# ifdef QUADRATIC_WEIGHTS
+#  ifdef WET_DRY
+          Rcontact(cr) % QweightUnmasked(1,m) = Qweight(1,ip)
+          Rcontact(cr) % QweightUnmasked(2,m) = Qweight(2,ip)
+          Rcontact(cr) % QweightUnmasked(3,m) = Qweight(3,ip)
+          Rcontact(cr) % QweightUnmasked(4,m) = Qweight(4,ip)
+          Rcontact(cr) % QweightUnmasked(5,m) = Qweight(5,ip)
+          Rcontact(cr) % QweightUnmasked(6,m) = Qweight(6,ip)
+          Rcontact(cr) % QweightUnmasked(7,m) = Qweight(7,ip)
+          Rcontact(cr) % QweightUnmasked(8,m) = Qweight(8,ip)
+          Rcontact(cr) % QweightUnmasked(9,m) = Qweight(9,ip)
+#  endif
+          Rcontact(cr) % Qweight(1,m) = Qweight(1,ip)
+          Rcontact(cr) % Qweight(2,m) = Qweight(2,ip)
+          Rcontact(cr) % Qweight(3,m) = Qweight(3,ip)
+          Rcontact(cr) % Qweight(4,m) = Qweight(4,ip)
+          Rcontact(cr) % Qweight(5,m) = Qweight(5,ip)
+          Rcontact(cr) % Qweight(6,m) = Qweight(6,ip)
+          Rcontact(cr) % Qweight(7,m) = Qweight(7,ip)
+          Rcontact(cr) % Qweight(8,m) = Qweight(8,ip)
+          Rcontact(cr) % Qweight(9,m) = Qweight(9,ip)
+# endif
         END DO
 
         DO m=1,NpointsU(cr)
@@ -468,10 +780,38 @@
           Ucontact(cr) % Jrg(m) = Jrg_cp(ip)
           Ucontact(cr) % Idg(m) = Idg_cp(ip)
           Ucontact(cr) % Jdg(m) = Jdg_cp(ip)
-          Ucontact(cr) % Hweight(1,m) = Hweight(1,ip)
-          Ucontact(cr) % Hweight(2,m) = Hweight(2,ip)
-          Ucontact(cr) % Hweight(3,m) = Hweight(3,ip)
-          Ucontact(cr) % Hweight(4,m) = Hweight(4,ip)
+# ifdef WET_DRY
+          Ucontact(cr) % LweightUnmasked(1,m) = Lweight(1,ip)
+          Ucontact(cr) % LweightUnmasked(2,m) = Lweight(2,ip)
+          Ucontact(cr) % LweightUnmasked(3,m) = Lweight(3,ip)
+          Ucontact(cr) % LweightUnmasked(4,m) = Lweight(4,ip)
+# endif
+          Ucontact(cr) % Lweight(1,m) = Lweight(1,ip)
+          Ucontact(cr) % Lweight(2,m) = Lweight(2,ip)
+          Ucontact(cr) % Lweight(3,m) = Lweight(3,ip)
+          Ucontact(cr) % Lweight(4,m) = Lweight(4,ip)
+# ifdef QUADRATIC_WEIGHTS
+#  ifdef WET_DRY
+          Ucontact(cr) % QweightUnmasked(1,m) = Qweight(1,ip)
+          Ucontact(cr) % QweightUnmasked(2,m) = Qweight(2,ip)
+          Ucontact(cr) % QweightUnmasked(3,m) = Qweight(3,ip)
+          Ucontact(cr) % QweightUnmasked(4,m) = Qweight(4,ip)
+          Ucontact(cr) % QweightUnmasked(5,m) = Qweight(5,ip)
+          Ucontact(cr) % QweightUnmasked(6,m) = Qweight(6,ip)
+          Ucontact(cr) % QweightUnmasked(7,m) = Qweight(7,ip)
+          Ucontact(cr) % QweightUnmasked(8,m) = Qweight(8,ip)
+          Ucontact(cr) % QweightUnmasked(9,m) = Qweight(9,ip)
+#  endif
+          Ucontact(cr) % Qweight(1,m) = Qweight(1,ip)
+          Ucontact(cr) % Qweight(2,m) = Qweight(2,ip)
+          Ucontact(cr) % Qweight(3,m) = Qweight(3,ip)
+          Ucontact(cr) % Qweight(4,m) = Qweight(4,ip)
+          Ucontact(cr) % Qweight(5,m) = Qweight(5,ip)
+          Ucontact(cr) % Qweight(6,m) = Qweight(6,ip)
+          Ucontact(cr) % Qweight(7,m) = Qweight(7,ip)
+          Ucontact(cr) % Qweight(8,m) = Qweight(8,ip)
+          Ucontact(cr) % Qweight(9,m) = Qweight(9,ip)
+# endif
         END DO
 
         DO m=1,NpointsV(cr)
@@ -480,10 +820,38 @@
           Vcontact(cr) % Jrg(m) = Jrg_cp(ip)
           Vcontact(cr) % Idg(m) = Idg_cp(ip)
           Vcontact(cr) % Jdg(m) = Jdg_cp(ip)
-          Vcontact(cr) % Hweight(1,m) = Hweight(1,ip)
-          Vcontact(cr) % Hweight(2,m) = Hweight(2,ip)
-          Vcontact(cr) % Hweight(3,m) = Hweight(3,ip)
-          Vcontact(cr) % Hweight(4,m) = Hweight(4,ip)
+# ifdef WET_DRY
+          Vcontact(cr) % LweightUnmasked(1,m) = Lweight(1,ip)
+          Vcontact(cr) % LweightUnmasked(2,m) = Lweight(2,ip)
+          Vcontact(cr) % LweightUnmasked(3,m) = Lweight(3,ip)
+          Vcontact(cr) % LweightUnmasked(4,m) = Lweight(4,ip)
+# endif
+          Vcontact(cr) % Lweight(1,m) = Lweight(1,ip)
+          Vcontact(cr) % Lweight(2,m) = Lweight(2,ip)
+          Vcontact(cr) % Lweight(3,m) = Lweight(3,ip)
+          Vcontact(cr) % Lweight(4,m) = Lweight(4,ip)
+# ifdef QUADRATIC_WEIGHTS
+#  ifdef WET_DRY
+          Vcontact(cr) % QweightUnmasked(1,m) = Qweight(1,ip)
+          Vcontact(cr) % QweightUnmasked(2,m) = Qweight(2,ip)
+          Vcontact(cr) % QweightUnmasked(3,m) = Qweight(3,ip)
+          Vcontact(cr) % QweightUnmasked(4,m) = Qweight(4,ip)
+          Vcontact(cr) % QweightUnmasked(5,m) = Qweight(5,ip)
+          Vcontact(cr) % QweightUnmasked(6,m) = Qweight(6,ip)
+          Vcontact(cr) % QweightUnmasked(7,m) = Qweight(7,ip)
+          Vcontact(cr) % QweightUnmasked(8,m) = Qweight(8,ip)
+          Vcontact(cr) % QweightUnmasked(9,m) = Qweight(9,ip)
+#  endif
+          Vcontact(cr) % Qweight(1,m) = Qweight(1,ip)
+          Vcontact(cr) % Qweight(2,m) = Qweight(2,ip)
+          Vcontact(cr) % Qweight(3,m) = Qweight(3,ip)
+          Vcontact(cr) % Qweight(4,m) = Qweight(4,ip)
+          Vcontact(cr) % Qweight(5,m) = Qweight(5,ip)
+          Vcontact(cr) % Qweight(6,m) = Qweight(6,ip)
+          Vcontact(cr) % Qweight(7,m) = Qweight(7,ip)
+          Vcontact(cr) % Qweight(8,m) = Qweight(8,ip)
+          Vcontact(cr) % Qweight(9,m) = Qweight(9,ip)
+# endif
         END DO
 
       END DO
@@ -515,6 +883,10 @@
         allocate ( CONTACT_METRIC(cr) % Yu    (NpointsU(cr)) )
         allocate ( CONTACT_METRIC(cr) % Xv    (NpointsV(cr)) )
         allocate ( CONTACT_METRIC(cr) % Yv    (NpointsV(cr)) )
+
+        Dmem(ng)=Dmem(ng)+10.0_r8*REAL(NpointsR(cr),r8)
+        Dmem(ng)=Dmem(ng)+ 3.0_r8*REAL(NpointsU(cr),r8)
+        Dmem(ng)=Dmem(ng)+ 3.0_r8*REAL(NpointsV(cr),r8)
       END DO
 !
 !  Initialize contact region metrics structure.
@@ -561,6 +933,7 @@
       IF (.not.allocated(ContactRegion)) THEN
         allocate ( ContactRegion(4,Ngrids) )
         ContactRegion = .FALSE.
+        Dmem(ng)=Dmem(ng)+4.0_r8*REAL(Ngrids,r8)
       END IF
 !
       DO m=1,NCdatum
@@ -593,20 +966,105 @@
         RefineScale(ig)=Refine_factor(ig)
       END DO
 !
-!  Data donor for refined grid.
+!  Coarser donor grid number to finer grid contact points.  Their
+!  values are computed in "metrics.F" when the maximum grid spacing
+!  is computed. The maximum grid spacing is used to distinguish
+!  contact areas for more than two layers of nesting.
 !
-      IF (.not.allocated(RefineDonor)) THEN
-        allocate ( RefineDonor(Ngrids) )
-        RefineDonor = 0
+!$OMP PARALLEL
+      IF (.not.allocated(CoarserDonor)) THEN
+        allocate ( CoarserDonor(Ngrids) )
+        CoarserDonor = 0
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+      END IF
+!$OMP END PARALLEL
+!
+!  Finer donor grid to coarser receiver grid for two-way feedback.
+!  Their values are computed in "metrics.F" when the maximum grid
+!  spacing is computed.
+!
+!$OMP PARALLEL
+      IF (.not.allocated(FinerDonor)) THEN
+        allocate ( FinerDonor(Ngrids) )
+        FinerDonor = 0
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+      END IF
+!$OMP END PARALLEL
+!
+!  Logical switch indicating which coarser grid is a donor to a finer
+!  grid external contact points. Their values are computed in
+!  "metrics.F" after "CoarserDonor" is computed.
+!
+!$OMP PARALLEL
+      IF (.not.allocated(DonorToFiner)) THEN
+        allocate ( DonorToFiner(Ngrids) )
+        DonorToFiner = .FALSE.
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+      END IF
+!$OMP END PARALLEL
+!
+!  Number of refined grid time-steps. Their values are initialized to
+!  the optimal values based on the spatial refinement ratio.  These
+!  values are over-written in "metrics.F" to use the time-step
+!  size ration between donor and receiver grid.  The user is allowed
+!  to take larger divisible time-step with respect to the donor grid.
+!  The user is responsible to set the appropriate refined grid time-step
+!  for stability.
+!
+!$OMP PARALLEL
+      IF (.not.allocated(RefineSteps)) THEN
+        allocate ( RefineSteps(Ngrids) )
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+        DO ig=1,Ngrids
+          RefineSteps(ig)=Refine_factor(ig)
+        END DO
+      END IF
+!$OMP END PARALLEL
+!
+!  Refine grid time-steps counter with respect the coarse grid (ng=1)
+!  single time-step.
+!
+      IF (.not.allocated(RefineStepsCounter)) THEN
+        allocate ( RefineStepsCounter(Ngrids) )
+        RefineStepsCounter = 0
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+      END IF
+!
+!  Interval used in the two-way exchange between fine and coarse grids.
+!
+      IF (.not.allocated(TwoWayInterval)) THEN
+        allocate ( TwoWayInterval(Ngrids) )
+        TwoWayInterval = 0.0_r8
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+      END IF
+!
+!  Switch indicating which refined grid(s) include finer refined grids:
+!  telescoping refinement.
+!
+!$OMP PARALLEL
+      IF (.not.allocated(Telescoping)) THEN
+        allocate ( Telescoping(Ngrids) )
+        Telescoping = .FALSE.
+        Dmem(ng)=Dmem(ng)+REAL(Ngrids,r8)
+      END IF
+!$OMP END PARALLEL
+!
+!  Rolling index and time (seconds) used in the temporal interpolation
+!  of contact point data.
+!
+!$OMP PARALLEL
+      IF (.not.allocated(RollingIndex)) THEN
+        allocate ( RollingIndex(Ncontact) )
+        RollingIndex = 0
+        Dmem(ng)=Dmem(ng)+REAL(Ncontact,r8)
       END IF
 
-      DO cr=1,Ncontact
-        dg=donor_grid(cr)
-        rg=receiver_grid(cr)
-        IF (RefinedGrid(rg).and.(RefineScale(rg).gt.0) ) THEN
-          RefineDonor(rg)=dg
-        END IF
-      END DO
+      IF (.not.allocated(RollingTime)) THEN
+        allocate ( RollingTime(2,Ncontact) )
+        RollingTime = 0
+        Dmem(ng)=Dmem(ng)+2.0_r8*REAL(Ncontact,r8)
+      END IF
+!$OMP END PARALLEL
 !
 !-----------------------------------------------------------------------
 !  Allocate composite grids contact regions structure and arrays.
@@ -632,10 +1090,18 @@
 
           allocate ( COMPOSITE(cr) % rzeta(4,NpointsR(cr)) )
 
+          Dmem(dg)=Dmem(dg)+2.0_r8*REAL(4*NpointsR(cr),r8)
+          Dmem(dg)=Dmem(dg)+2.0_r8*REAL(4*NpointsU(cr),r8)
+          Dmem(dg)=Dmem(dg)+2.0_r8*REAL(4*NpointsV(cr),r8)
+
 # ifdef SOLVE3D
           allocate ( COMPOSITE(cr) % DU_avg1(4,NpointsU(cr)) )
           allocate ( COMPOSITE(cr) % DV_avg1(4,NpointsV(cr)) )
           allocate ( COMPOSITE(cr) % Zt_avg1(4,NpointsR(cr)) )
+
+          Dmem(dg)=Dmem(dg)+REAL(4*NpointsR(cr),r8)
+          Dmem(dg)=Dmem(dg)+REAL(4*NpointsU(cr),r8)
+          Dmem(dg)=Dmem(dg)+REAL(4*NpointsV(cr),r8)
 
           allocate ( COMPOSITE(cr) % u(4,N(dg),NpointsU(cr)) )
           allocate ( COMPOSITE(cr) % v(4,N(dg),NpointsV(cr)) )
@@ -643,7 +1109,12 @@
           allocate ( COMPOSITE(cr) % Huon(4,N(dg),NpointsU(cr)) )
           allocate ( COMPOSITE(cr) % Hvom(4,N(dg),NpointsV(cr)) )
 
+          Dmem(dg)=Dmem(dg)+2.0_r8*REAL(4*N(dg)*NpointsU(cr),r8)
+          Dmem(dg)=Dmem(dg)+2.0_r8*REAL(4*N(dg)*NpointsV(cr),r8)
+
           allocate ( COMPOSITE(cr) % t(4,N(dg),NpointsR(cr),NT(dg)) )
+
+          Dmem(dg)=Dmem(dg)+2.0_r8*REAL(4*N(dg)*NpointsU(cr)*NT(dg),r8)
 # endif
         END DO
       END IF
@@ -673,11 +1144,19 @@
           allocate ( REFINED(cr) % on_u(NpointsU(cr)) )
           allocate ( REFINED(cr) % om_v(NpointsV(cr)) )
 
+          Dmem(rg)=Dmem(rg)+REAL(4*NpointsR(cr),r8)
+          Dmem(rg)=Dmem(rg)+3.0_r8*REAL(4*NpointsU(cr),r8)
+          Dmem(rg)=Dmem(rg)+3.0_r8*REAL(4*NpointsV(cr),r8)
+
 # ifdef SOLVE3D
           allocate ( REFINED(cr) % u(4,N(rg),NpointsU(cr),2) )
           allocate ( REFINED(cr) % v(4,N(rg),NpointsV(cr),2) )
 
+          Dmem(rg)=Dmem(rg)+3.0_r8*REAL(4*N(rg)*NpointsU(cr),r8)
+          Dmem(rg)=Dmem(rg)+3.0_r8*REAL(4*N(rg)*NpointsV(cr),r8)
+
           allocate ( REFINED(cr) % t(4,N(rg),NpointsR(cr),2,NT(rg)) )
+          Dmem(rg)=Dmem(rg)+2.0_r8*REAL(4*N(rg)*NpointsR(cr)*NT(rg),r8)
 # endif
         END DO
       END IF

@@ -4,7 +4,7 @@
 !
 !svn $Id$
 !=======================================================================
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                           Hernan G. Arango   !
 !========================================== Alexander F. Shchepetkin ===
@@ -96,7 +96,7 @@
       real(r8), parameter :: eps =1.0E-20_r8
 
       real(r8) :: Ce, Cx, cff, dTde, dTdt, dTdx
-      real(r8) :: obc_in, obc_out, tau
+      real(r8) :: obc_in, obc_out, phi, tau
 
       real(r8), dimension(IminS:ImaxS,JminS:JmaxS) :: grad
 
@@ -132,13 +132,13 @@
                 dTdx=t(Istr,j,k,nout,itrc)-t(Istr+1,j,k,nout,itrc)
 
                 IF (LBC(iwest,isTvar(itrc),ng)%nudging) THEN
-                  IF (LnudgeTCLM(itrc,ng)) THEN
-                    obc_out=CLIMA(ng)%Tnudgcof(Istr-1,j,k,ic)
-                    obc_in =obcfac(ng)*obc_out
-                  ELSE
+!                 IF (LnudgeTCLM(itrc,ng)) THEN
+!                   obc_out=CLIMA(ng)%Tnudgcof(Istr-1,j,k,ic)
+!                   obc_in =obcfac(ng)*obc_out
+!                 ELSE
                     obc_out=Tobc_out(itrc,ng,iwest)
                     obc_in =Tobc_in (itrc,ng,iwest)
-                  END IF
+!                 END IF
                   IF ((dTdt*dTdx).lt.0.0_r8) THEN
                     tau=obc_in
                   ELSE
@@ -147,7 +147,6 @@
                   tau=tau*dt(ng)
                 END IF
 
-                IF ((dTdt*dTdx).lt.0.0_r8) dTdt=0.0_r8
                 IF ((dTdt*(grad(Istr,j  )+                              &
      &                     grad(Istr,j+1))).gt.0.0_r8) THEN
                   dTde=grad(Istr,j  )
@@ -155,6 +154,7 @@
                   dTde=grad(Istr,j+1)
                 END IF
                 cff=MAX(dTdx*dTdx+dTde*dTde,eps)
+                IF ((dTdt*dTdx).lt.0.0_r8) dTdt=0.0_r8
                 Cx=dTdt*dTdx
 # ifdef RADIATION_2D
                 Ce=MIN(cff,MAX(dTdt*dTde,-cff))
@@ -189,11 +189,10 @@
      &                                  (cff+Cx)
 
                 IF (LBC(iwest,isTvar(itrc),ng)%nudging) THEN
-                  t(Istr-1,j,k,nout,itrc)=t(Istr-1,j,k,nout,itrc)+      &
-     &                                    tau*                          &
-     &                                    (BOUNDARY(ng)%t_west(j,k,     &
-     &                                                         itrc)-   &
-     &                                     t(Istr-1,j,k,nstp,itrc))
+                  phi = dt(ng) / (tau + dt(ng))
+                  t(Istr-1,j,k,nout,itrc) =                             &
+     &                       (1._r8-phi)*t(Istr-1,j,k,nout,itrc)+       &
+     &                         phi*BOUNDARY(ng)%t_west(j,k,itrc)
                 END IF
 #  ifdef MASKING
                 t(Istr-1,j,k,nout,itrc)=t(Istr-1,j,k,nout,itrc)*        &
@@ -281,13 +280,13 @@
                 dTdx=t(Iend,j,k,nout,itrc)-t(Iend-1,j,k,nout,itrc)
 
                 IF (LBC(ieast,isTvar(itrc),ng)%nudging) THEN
-                  IF (LnudgeTCLM(itrc,ng)) THEN
-                    obc_out=CLIMA(ng)%Tnudgcof(Iend+1,j,k,ic)
-                    obc_in =obcfac(ng)*obc_out
-                  ELSE
+!                 IF (LnudgeTCLM(itrc,ng)) THEN
+!                   obc_out=CLIMA(ng)%Tnudgcof(Iend+1,j,k,ic)
+!                   obc_in =obcfac(ng)*obc_out
+!                 ELSE
                     obc_out=Tobc_out(itrc,ng,ieast)
                     obc_in =Tobc_in (itrc,ng,ieast)
-                  END IF
+!                 END IF
                   IF ((dTdt*dTdx).lt.0.0_r8) THEN
                     tau=obc_in
                   ELSE
@@ -296,7 +295,6 @@
                   tau=tau*dt(ng)
                 END IF
 
-                IF ((dTdt*dTdx).lt.0.0_r8) dTdt=0.0_r8
                 IF ((dTdt*(grad(Iend,j  )+                              &
      &                     grad(Iend,j+1))).gt.0.0_r8) THEN
                   dTde=grad(Iend,j  )
@@ -304,6 +302,7 @@
                   dTde=grad(Iend,j+1)
                 END IF
                 cff=MAX(dTdx*dTdx+dTde*dTde,eps)
+                IF ((dTdt*dTdx).lt.0.0_r8) dTdt=0.0_r8
                 Cx=dTdt*dTdx
 # ifdef RADIATION_2D
                 Ce=MIN(cff,MAX(dTdt*dTde,-cff))
@@ -338,11 +337,10 @@
      &                                  (cff+Cx)
 
                 IF (LBC(ieast,isTvar(itrc),ng)%nudging) THEN
-                  t(Iend+1,j,k,nout,itrc)=t(Iend+1,j,k,nout,itrc)+      &
-     &                                    tau*                          &
-     &                                    (BOUNDARY(ng)%t_east(j,k,     &
-     &                                                         itrc)-   &
-     &                                     t(Iend+1,j,k,nstp,itrc))
+                  phi = dt(ng) / (tau + dt(ng))
+                  t(Iend+1,j,k,nout,itrc) =                             &
+     &                       (1._r8-phi)*t(Iend+1,j,k,nout,itrc)+       &
+     &                         phi*BOUNDARY(ng)%t_east(j,k,itrc)
                 END IF
 #  ifdef MASKING
                 t(Iend+1,j,k,nout,itrc)=t(Iend+1,j,k,nout,itrc)*        &
@@ -430,13 +428,13 @@
                 dTde=t(i,Jstr,k,nout,itrc)-t(i,Jstr+1,k,nout,itrc)
 
                 IF (LBC(isouth,isTvar(itrc),ng)%nudging) THEN
-                  IF (LnudgeTCLM(itrc,ng)) THEN
-                    obc_out=CLIMA(ng)%Tnudgcof(i,Jstr-1,k,ic)
-                    obc_in =obcfac(ng)*obc_out
-                  ELSE
+!                 IF (LnudgeTCLM(itrc,ng)) THEN
+!                   obc_out=CLIMA(ng)%Tnudgcof(i,Jstr-1,k,ic)
+!                   obc_in =obcfac(ng)*obc_out
+!                 ELSE
                     obc_out=Tobc_out(itrc,ng,isouth)
                     obc_in =Tobc_in (itrc,ng,isouth)
-                  END IF
+!                 END IF
                   IF ((dTdt*dTde).lt.0.0_r8) THEN
                     tau=obc_in
                   ELSE
@@ -445,7 +443,6 @@
                   tau=tau*dt(ng)
                 END IF
 
-                IF ((dTdt*dTde).lt.0.0_r8) dTdt=0.0_r8
                 IF ((dTdt*(grad(i  ,Jstr)+                              &
      &                     grad(i+1,Jstr))).gt.0.0_r8) THEN
                   dTdx=grad(i  ,Jstr)
@@ -453,6 +450,7 @@
                   dTdx=grad(i+1,Jstr)
                 END IF
                 cff=MAX(dTdx*dTdx+dTde*dTde,eps)
+                IF ((dTdt*dTde).lt.0.0_r8) dTdt=0.0_r8
 # ifdef RADIATION_2D
                 Cx=MIN(cff,MAX(dTdt*dTdx,-cff))
 # else
@@ -488,11 +486,10 @@
      &                                  (cff+Ce)
 
                 IF (LBC(isouth,isTvar(itrc),ng)%nudging) THEN
-                  t(i,Jstr-1,k,nout,itrc)=t(i,Jstr-1,k,nout,itrc)+      &
-     &                                    tau*                          &
-     &                                    (BOUNDARY(ng)%t_south(i,k,    &
-     &                                                          itrc)-  &
-     &                                     t(i,Jstr-1,k,nstp,itrc))
+                  phi = dt(ng) / (tau + dt(ng))
+                  t(i,Jstr-1,k,nout,itrc) =                             &
+     &                       (1._r8-phi)*t(i,Jstr-1,k,nout,itrc)+       &
+     &                         phi*BOUNDARY(ng)%t_south(i,k,itrc)
                 END IF
 #  ifdef MASKING
                 t(i,Jstr-1,k,nout,itrc)=t(i,Jstr-1,k,nout,itrc)*        &
@@ -580,13 +577,13 @@
                 dTde=t(i,Jend,k,nout,itrc)-t(i,Jend-1,k,nout,itrc)
 
                 IF (LBC(inorth,isTvar(itrc),ng)%nudging) THEN
-                  IF (LnudgeTCLM(itrc,ng)) THEN
-                    obc_out=CLIMA(ng)%Tnudgcof(i,Jend+1,k,ic)
-                    obc_in =obcfac(ng)*obc_out
-                  ELSE
+!                 IF (LnudgeTCLM(itrc,ng)) THEN
+!                   obc_out=CLIMA(ng)%Tnudgcof(i,Jend+1,k,ic)
+!                   obc_in =obcfac(ng)*obc_out
+!                 ELSE
                     obc_out=Tobc_out(itrc,ng,inorth)
                     obc_in =Tobc_in (itrc,ng,inorth)
-                  END IF
+!                 END IF
                   IF ((dTdt*dTde).lt.0.0_r8) THEN
                     tau=obc_in
                   ELSE
@@ -595,7 +592,6 @@
                   tau=tau*dt(ng)
                 END IF
 
-                IF ((dTdt*dTde).lt.0.0_r8) dTdt=0.0_r8
                 IF ((dTdt*(grad(i  ,Jend)+                              &
      &                     grad(i+1,Jend))).gt.0.0_r8) THEN
                   dTdx=grad(i  ,Jend)
@@ -603,6 +599,7 @@
                   dTdx=grad(i+1,Jend)
                 END IF
                 cff=MAX(dTdx*dTdx+dTde*dTde,eps)
+                IF ((dTdt*dTde).lt.0.0_r8) dTdt=0.0_r8
 # ifdef RADIATION_2D
                 Cx=MIN(cff,MAX(dTdt*dTdx,-cff))
 # else
@@ -637,17 +634,20 @@
      &                                  (cff+Ce)
 
                 IF (LBC(inorth,isTvar(itrc),ng)%nudging) THEN
-                  t(i,Jend+1,k,nout,itrc)=t(i,Jend+1,k,nout,itrc)+      &
-     &                                    tau*                          &
-     &                                    (BOUNDARY(ng)%t_north(i,k,    &
-     &                                                          itrc)-  &
-     &                                     t(i,Jend+1,k,nstp,itrc))
+                  phi = dt(ng) / (tau + dt(ng))
+                  t(i,Jend+1,k,nout,itrc) =                             &
+     &                       (1._r8-phi)*t(i,Jend+1,k,nout,itrc)+       &
+     &                         phi*BOUNDARY(ng)%t_north(i,k,itrc)
                 END IF
 #  ifdef MASKING
                 t(i,Jend+1,k,nout,itrc)=t(i,Jend+1,k,nout,itrc)*        &
      &                                  GRID(ng)%rmask(i,Jend+1)
 #  endif
 # endif
+!               if (i==77 .and. k==40) then
+!                 print *, 'in t3dbc', itrc, Ce, Cx, cff,               &
+!    &              tau, t(i,Jend+1,k,nout,itrc)
+!               endif
               END IF
             END DO
           END DO

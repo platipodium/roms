@@ -1,10 +1,11 @@
 #include "cppdefs.h"
+#define LONG_NUMS
 #ifdef NONLINEAR
       SUBROUTINE output (ng)
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -31,11 +32,11 @@
       USE mod_ncparam
       USE mod_netcdf
       USE mod_scalars
-
-# ifdef DISTRIBUTE
 !
+# ifdef DISTRIBUTE
       USE distribute_mod, ONLY : mp_bcasts
 # endif
+      USE strings_mod,    ONLY : FoundError
 !
       implicit none
 !
@@ -52,7 +53,7 @@
       integer :: i
 # endif
 !
-      SourceFile='output.F'
+      SourceFile=__FILE__
 
 # ifdef PROFILE
 !
@@ -60,12 +61,20 @@
 !  Turn on output data time wall clock.
 !-----------------------------------------------------------------------
 !
-      CALL wclock_on (ng, iNLM, 8)
+      CALL wclock_on (ng, iNLM, 8, __LINE__, __FILE__)
 # endif
 !
 !-----------------------------------------------------------------------
 !  If appropriate, process nonlinear history NetCDF file.
 !-----------------------------------------------------------------------
+!
+!  Set tile for local array manipulations in output routines.
+!
+#ifdef DISTRIBUTE
+      tile=MyRank
+#else
+      tile=-1
+#endif
 !
 !  Turn off checking for analytical header files.
 !
@@ -110,8 +119,7 @@
             ifile=(iic(ng)-1)/ndefHIS(ng)+1
             IF (Master) THEN
               WRITE (HIS(ng)%name,10) TRIM(HIS(ng)%base), ifile
-#if defined NEP5 || defined NEP6 || defined CASPIAN || defined CHUKCHI \
-           || defined CORAL || defined NWA || defined ARC_NATL
+#ifdef LONG_NUMS
   10          FORMAT (a,'_',i5.5,'.nc')
 #else
   10          FORMAT (a,'_',i4.4,'.nc')
@@ -124,7 +132,8 @@
               CALL netcdf_close (ng, iNLM, HIS(ng)%ncid)
             END IF
             CALL def_his (ng, NewFile)
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
           END IF
           IF ((iic(ng).eq.ntstart(ng)).and.(nrrec(ng).ne.0)) THEN
             LwrtHIS(ng)=.FALSE.                 ! avoid writing initial
@@ -134,7 +143,8 @@
         ELSE
           IF (iic(ng).eq.ntstart(ng)) THEN
             CALL def_his (ng, ldefout(ng))
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
             LwrtHIS(ng)=.TRUE.
             LdefHIS(ng)=.FALSE.
           END IF
@@ -149,98 +159,114 @@
           IF ((iic(ng).gt.ntstart(ng)).and.                             &
      &        (MOD(iic(ng)-1,nHIS(ng)).eq.0)) THEN
             IF (nrrec(ng).eq.0.or.iic(ng).ne.ntstart(ng)) THEN
-              CALL wrt_his (ng)
+              CALL wrt_his (ng, tile)
             END IF
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
           END IF
         ELSE
           IF (MOD(iic(ng)-1,nHIS(ng)).eq.0) THEN
-            CALL wrt_his (ng)
-            IF (exit_flag.ne.NoError) RETURN
+            CALL wrt_his (ng, tile)
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
           END IF
         END IF
       END IF
 # endif
-# if defined HISTORY2
 !
 !-----------------------------------------------------------------------
-!  If appropriate, process secondary surface NetCDF file.
+!  If appropriate, process nonlinear quicksave NetCDF file.
 !-----------------------------------------------------------------------
 !
-!  Create output time-averaged NetCDF file or prepare existing file
-!  to append new data to it. Also, notice that it is possible to
+!  Create output quicksave NetCDF file or prepare existing file to
+!  append new data to it.  Also,  notice that it is possible to
 !  create several files during a single model run.
 !
-      IF (LdefHIS2(ng)) THEN
-        IF (ndefHIS2(ng).gt.0) THEN
-          IF (idefHIS2(ng).lt.0) THEN
-            idefHIS2(ng)=((ntstart(ng)-1)/ndefHIS2(ng))*ndefHIS2(ng)
-            IF ((ndefHIS2(ng).eq.nHIS2(ng)).and.(idefHIS2(ng).le.0)) THEN
-              idefHIS2(ng)=ndefHIS2(ng)         ! one file per record
-            ELSE IF (idefHIS2(ng).lt.iic(ng)-1) THEN
-              idefHIS2(ng)=idefHIS2(ng)+ndefHIS2(ng)
+      IF (LdefQCK(ng)) THEN
+        IF (ndefQCK(ng).gt.0) THEN
+          IF (idefQCK(ng).lt.0) THEN
+            idefQCK(ng)=((ntstart(ng)-1)/ndefQCK(ng))*ndefQCK(ng)
+            IF (idefQCK(ng).lt.iic(ng)-1) THEN
+              idefQCK(ng)=idefQCK(ng)+ndefQCK(ng)
             END IF
           END IF
           IF ((nrrec(ng).ne.0).and.(iic(ng).eq.ntstart(ng))) THEN
-            IF ((iic(ng)-1).eq.idefHIS2(ng)) THEN
-              Ldefine=.FALSE.                    ! finished file, delay
-            ELSE                                 ! creation of next file
-              NewFile=.FALSE.
-              Ldefine=.TRUE.                     ! unfinished file, inquire
-            END IF                               ! content for appending
-            idefHIS2(ng)=idefHIS2(ng)+nHIS2(ng)  ! restart offset
-          ELSE IF ((iic(ng)-1).eq.idefHIS2(ng)) THEN
-            idefHIS2(ng)=idefHIS2(ng)+ndefHIS2(ng)
-            IF (nHIS2(ng).ne.ndefHIS2(ng).and.iic(ng).eq.ntstart(ng))   &
-     &              THEN
-              idefHIS2(ng)=idefHIS2(ng)+nHIS2(ng)
+            IF ((iic(ng)-1).eq.idefQCK(ng)) THEN
+              Ldefine=.FALSE.                 ! finished file, delay
+            ELSE                              ! creation of next file
+              Ldefine=.TRUE.
+              NewFile=.FALSE.                 ! unfinished file, inquire
+            END IF                            ! content for appending
+            idefQCK(ng)=idefQCK(ng)+nQCK(ng)  ! restart offset
+          ELSE IF ((iic(ng)-1).eq.idefQCK(ng)) THEN
+            idefQCK(ng)=idefQCK(ng)+ndefQCK(ng)
+            IF (nQCK(ng).ne.ndefQCK(ng).and.iic(ng).eq.ntstart(ng)) THEN
+              idefQCK(ng)=idefQCK(ng)+nQCK(ng)  ! multiple record offset
             END IF
             Ldefine=.TRUE.
             NewFile=.TRUE.
           ELSE
             Ldefine=.FALSE.
           END IF
-          IF (Ldefine) THEN
-            Fcount=HIS2(ng)%Fcount
-            HIS2(ng)%Nrec(Fcount)=0
-            IF (nHIS2(ng).eq.ndefHIS2(ng)) THEN
-              ifile=(iic(ng)-1)/ndefHIS2(ng)
-            ELSE
-              ifile=(iic(ng)-1)/ndefHIS2(ng)+1
-            END IF
+          IF (Ldefine) THEN                     ! create new file or
+            Fcount=QCK(ng)%Fcount               ! inquire existing file
+            QCK(ng)%Nrec(Fcount)=0
+            ifile=(iic(ng)-1)/ndefQCK(ng)+1
             IF (Master) THEN
-              WRITE (HIS2(ng)%name,20) TRIM(HIS2(ng)%base), ifile
+              WRITE (QCK(ng)%name,12) TRIM(QCK(ng)%base), ifile
             END IF
+#ifdef LONG_NUMS
+  12          FORMAT (a,'_',i5.5,'.nc')
+#else
+  12          FORMAT (a,'_',i4.4,'.nc')
+#endif
 # ifdef DISTRIBUTE
-            CALL mp_bcasts (ng, iNLM, HIS2(ng)%name)
+            CALL mp_bcasts (ng, iNLM, QCK(ng)%name)
 # endif
-            IF (HIS2(ng)%ncid.ne.-1) THEN
-              CALL netcdf_close(ng, iNLM, HIS2(ng)%ncid)
+            IF (QCK(ng)%ncid.ne.-1) THEN
+              CALL netcdf_close (ng, iNLM, QCK(ng)%ncid)
             END IF
-            CALL def_his2 (ng, Newfile)
-            IF (exit_flag.ne.NoError) RETURN
-            LwrtHIS2(ng)=.TRUE.
+            CALL def_quick (ng, NewFile)
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
+          END IF
+          IF ((iic(ng).eq.ntstart(ng)).and.(nrrec(ng).ne.0)) THEN
+            LwrtQCK(ng)=.FALSE.                 ! avoid writing initial
+          ELSE                                  ! fields during restart
+            LwrtQCK(ng)=.TRUE.
           END IF
         ELSE
           IF (iic(ng).eq.ntstart(ng)) THEN
-            CALL def_his2 (ng, ldefout(ng))
-            IF (exit_flag.ne.NoError) RETURN
-            LwrtHIS2(ng)=.TRUE.
-            LdefHIS2(ng)=.FALSE.
+            CALL def_quick (ng, ldefout(ng))
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
+            LwrtQCK(ng)=.TRUE.
+            LdefQCK(ng)=.FALSE.
           END IF
         END IF
       END IF
 !
-!  Write out data into time-averaged NetCDF file.
+!  Write out data into quicksave NetCDF file.  Avoid writing initial
+!  conditions in perturbation mode computations.
 !
-      IF (LwrtHIS2(ng)) THEN
-        IF ((iic(ng).gt.ntstart(ng)).and.                               &
-     &      (MOD(iic(ng)-1,nHIS2(ng)).eq.0)) THEN
-          CALL wrt_his2 (ng)
-          IF (exit_flag.ne.NoError) RETURN
+      IF (LwrtQCK(ng)) THEN
+        IF (LwrtPER(ng)) THEN
+          IF ((iic(ng).gt.ntstart(ng)).and.                             &
+     &        (MOD(iic(ng)-1,nQCK(ng)).eq.0)) THEN
+            IF (nrrec(ng).eq.0.or.iic(ng).ne.ntstart(ng)) THEN
+              CALL wrt_quick (ng, tile)
+            END IF
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
+          END IF
+        ELSE
+          IF (MOD(iic(ng)-1,nQCK(ng)).eq.0) THEN
+            CALL wrt_quick (ng, tile)
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
+          END IF
         END IF
       END IF
-# endif
 
 # ifdef AVERAGES
 !
@@ -290,8 +316,7 @@
             END IF
             IF (Master) THEN
               WRITE (AVG(ng)%name,20) TRIM(AVG(ng)%base), ifile
-#if defined NEP5 || defined NEP6 || defined CASPIAN || defined CHUKCHI \
-           || defined CORAL || defined NWA || defined ARC_NATL
+#ifdef LONG_NUMS
   20          FORMAT (a,'_',i5.5,'.nc')
 #else
   20          FORMAT (a,'_',i4.4,'.nc')
@@ -304,13 +329,15 @@
               CALL netcdf_close (ng, iNLM, AVG(ng)%ncid)
             END IF
             IF (ifile .ne. 0) CALL def_avg (ng, Newfile)
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
             LwrtAVG(ng)=.TRUE.
           END IF
         ELSE
           IF (iic(ng).eq.ntstart(ng)) THEN
             CALL def_avg (ng, ldefout(ng))
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
             LwrtAVG(ng)=.TRUE.
             LdefAVG(ng)=.FALSE.
           END IF
@@ -324,10 +351,12 @@
      &       (MOD(iic(ng)-1,nAVG(ng)).eq.0)).or.                        &
      &      ((iic(ng).ge.ntsAVG(ng)).and.(nAVG(ng).eq.1))) THEN
           CALL wrt_avg (ng)
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
 #  if defined AVERAGES_DETIDE && (defined SSH_TIDES || defined UV_TIDES)
           CALL wrt_tides (ng)
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                   &
+     &                   __FILE__)) RETURN
 #  endif
         END IF
       END IF
@@ -380,8 +409,13 @@
               ifile=(iic(ng)-1)/ndefAVG2(ng)+1
             END IF
             IF (Master) THEN
-              WRITE (AVG2(ng)%name,20) TRIM(AVG2(ng)%base), ifile
+              WRITE (AVG2(ng)%name,22) TRIM(AVG2(ng)%base), ifile
             END IF
+#ifdef LONG_NUMS
+  22          FORMAT (a,'_',i5.5,'.nc')
+#else
+  22          FORMAT (a,'_',i4.4,'.nc')
+#endif
 # ifdef DISTRIBUTE
             CALL mp_bcasts (ng, iNLM, AVG2(ng)%name)
 # endif
@@ -389,13 +423,15 @@
               CALL netcdf_close(ng, iNLM, AVG2(ng)%ncid)
             END IF
             CALL def_avg2 (ng, Newfile)
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
             LwrtAVG2(ng)=.TRUE.
           END IF
         ELSE
           IF (iic(ng).eq.ntstart(ng)) THEN
             CALL def_avg2 (ng, ldefout(ng))
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
             LwrtAVG2(ng)=.TRUE.
             LdefAVG2(ng)=.FALSE.
           END IF
@@ -405,10 +441,12 @@
 !  Write out data into time-averaged NetCDF file.
 !
       IF (LwrtAVG2(ng)) THEN
-        IF ((iic(ng).gt.ntstart(ng)).and.                               &
-     &      (MOD(iic(ng)-1,nAVG2(ng)).eq.0)) THEN
+        IF (((iic(ng).gt.ntstart(ng)).and.                              &
+     &       (MOD(iic(ng)-1,nAVG2(ng)).eq.0)).or.                       &
+     &      ((iic(ng).ge.ntsAVG2(ng)).and.(nAVG2(ng).eq.1))) THEN
           CALL wrt_avg2 (ng)
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                     __FILE__)) RETURN
         END IF
       END IF
 # endif
@@ -461,8 +499,7 @@
             END IF
             IF (Master) THEN
               WRITE (DIA(ng)%name,30) TRIM(DIA(ng)%base), ifile
-#if defined NEP5 || defined NEP6 || defined CASPIAN || defined CHUKCHI \
-           || defined CORAL || defined NWA || defined ARC_NATL
+#ifdef LONG_NUMS
   30          FORMAT (a,'_',i5.5,'.nc')
 #else
   30          FORMAT (a,'_',i4.4,'.nc')
@@ -475,13 +512,15 @@
               CALL netcdf_close (ng, iNLM, DIA(ng)%ncid)
             END IF
             CALL def_diags (ng, Newfile)
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
             LwrtDIA(ng)=.TRUE.
           END IF
         ELSE
           IF (iic(ng).eq.ntstart(ng)) THEN
             CALL def_diags (ng, ldefout(ng))
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
             LwrtDIA(ng)=.TRUE.
             LdefDIA(ng)=.FALSE.
           END IF
@@ -495,7 +534,8 @@
      &       (MOD(iic(ng)-1,nDIA(ng)).eq.0)).or.                        &
      &      ((iic(ng).ge.ntsDIA(ng)).and.(nDIA(ng).eq.1))) THEN
           CALL wrt_diags (ng)
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
         END IF
       END IF
 # endif
@@ -515,12 +555,13 @@
         IF (LdefSTA(ng).and.(iic(ng).eq.ntstart(ng))) THEN
 #if defined NEP5 || defined NEP6 || defined CASPIAN || defined CHUKCHI \
            || defined CORAL || defined NWA || defined ARC_NATL \
-           || defined ARCTIC
+           || defined ARCTIC || defined NWGOA || defined BEAUFORT
           CALL def_station (ng, .true.)
 #else
           CALL def_station (ng, ldefout(ng))
 #endif
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
           LdefSTA(ng)=.FALSE.
         END IF
 !
@@ -528,7 +569,8 @@
 !
         IF (MOD(iic(ng)-1,nSTA(ng)).eq.0) THEN
           CALL wrt_station (ng)
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
         END IF
       END IF
 # endif
@@ -552,7 +594,8 @@
             NewFile=.FALSE.
           END IF
           CALL def_floats (ng, NewFile)
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
           LdefFLT(ng)=.FALSE.
         END IF
 !
@@ -561,7 +604,8 @@
         IF ((MOD(iic(ng)-1,nFLT(ng)).eq.0).and.                         &
      &      ((frrec(ng).eq.0).or.(iic(ng).ne.ntstart(ng)))) THEN
           CALL wrt_floats (ng)
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
         END IF
       END IF
 # endif
@@ -575,7 +619,8 @@
 !
       IF (LdefRST(ng)) THEN
         CALL def_rst (ng)
-        IF (exit_flag.ne.NoError) RETURN
+        IF (FoundError(exit_flag, NoError, __LINE__,                    &
+     &                 __FILE__)) RETURN
         LwrtRST(ng)=.TRUE.
         LdefRST(ng)=.FALSE.
 #ifdef FILTERED_RST
@@ -589,11 +634,13 @@
         IF ((iic(ng).gt.ntstart(ng)).and.                               &
      & ((MOD(iic(ng)-1,nRST(ng)).eq.0) .or. ((iic(ng)-1)==ntimes(ng)))) THEN
           CALL wrt_rst (ng)
-          IF (exit_flag.ne.NoError) RETURN
+          IF (FoundError(exit_flag, NoError, __LINE__,                  &
+     &                   __FILE__)) RETURN
 # ifdef FILTERED_RST
           DO i=1,FILN
             CALL wrt_filt (ng, i)
-            IF (exit_flag.ne.NoError) RETURN
+            IF (FoundError(exit_flag, NoError, __LINE__,                &
+     &                     __FILE__)) RETURN
           END DO
 # endif
         END IF
@@ -611,14 +658,9 @@
       IF (((time(ng)-0.5_r8*dt(ng)).le.ObsTime(ng)).and.                &
      &    (ObsTime(ng).lt.(time(ng)+0.5_r8*dt(ng)))) THEN
         ProcessObs=.TRUE.
-#   ifdef DISTRIBUTE
-        tile=MyRank
-#   else
-        tile=-1
-#   endif
         CALL obs_read (ng, iNLM, .FALSE.)
         CALL obs_write (ng, tile, iNLM)
-#   ifndef W4DVAR
+#   if !(defined VERIFICATION || defined W4DVAR)
         CALL obs_cost (ng, iNLM)
 #   endif
       ELSE
@@ -626,13 +668,37 @@
       END IF
 #  endif
 # endif
+
+# ifdef CICE_MODEL
+!        write_restart=.false.
+
+!        IF (mod(iic(ng)+1,tspy(ng))==Oct*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==Nov*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==Dec*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==Jan*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==Feb*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==Mar*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==Apr*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==May*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==Jun*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==Jul*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==Aug*tspd(ng)) write_restart=.true.
+!        IF (mod(iic(ng)+1,tspy(ng))==Sep*tspd(ng)) write_restart=.true.
+
+!        IF (write_restart==.true.) THEN
+!          CALL wrt_rst (ng)
+!          IF (FoundError(exit_flag, NoError, __LINE__,                    &
+!    &                    __FILE__)) RETURN
+!        END IF
+# endif
+
 # ifdef PROFILE
 !
 !-----------------------------------------------------------------------
 !  Turn off output data time wall clock.
 !-----------------------------------------------------------------------
 !
-      CALL wclock_off (ng, iNLM, 8)
+      CALL wclock_off (ng, iNLM, 8, __LINE__, __FILE__)
 # endif
       RETURN
       END SUBROUTINE output

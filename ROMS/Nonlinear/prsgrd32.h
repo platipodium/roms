@@ -2,7 +2,7 @@
 !
 !svn $Id$
 !***********************************************************************
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                           Hernan G. Arango   !
 !****************************************** Alexander F. Shchepetkin ***
@@ -52,7 +52,7 @@
 #include "tile.h"
 !
 #ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 23)
+      CALL wclock_on (ng, iNLM, 23, __LINE__, __FILE__)
 #endif
       CALL prsgrd_tile (ng, tile,                                       &
      &                  LBi, UBi, LBj, UBj,                             &
@@ -63,8 +63,8 @@
      &                  GRID(ng) % vmask,                               &
 #endif
 #ifdef WET_DRY
-     &                  GRID(ng) % umask_wet,                           &
-     &                  GRID(ng) % vmask_wet,                           &
+     &                  GRID(ng)%umask_wet,                             &
+     &                  GRID(ng)%vmask_wet,                             &
 #endif
      &                  GRID(ng) % om_v,                                &
      &                  GRID(ng) % on_u,                                &
@@ -88,7 +88,7 @@
      &                  OCEAN(ng) % ru,                                 &
      &                  OCEAN(ng) % rv)
 #ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 23)
+      CALL wclock_off (ng, iNLM, 23, __LINE__, __FILE__)
 #endif
       RETURN
       END SUBROUTINE prsgrd

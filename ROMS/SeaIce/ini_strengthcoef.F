@@ -3,18 +3,12 @@
 !
 ! svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
 !                                                                      !
-!  This routine initializes horizontal mixing coefficients arrays      !
-!  according to the model flag.                                        !
-!                                                                      !
-!  WARNING:   All biharmonic coefficients are assumed to have the      !
-!             square root taken and have  m^2 s^-1/2 units.  This      !
-!             will allow multiplying the  biharmonic  coefficient      !
-!             to harmonic operator.                                    !
+!  This routine initializes pstar_grid based on the grid spacing.      !
 !                                                                      !
 !=======================================================================
 !

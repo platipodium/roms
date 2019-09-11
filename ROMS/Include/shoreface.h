@@ -1,7 +1,7 @@
 /*
 ** svn $Id$
 *******************************************************************************
-** Copyright (c) 2002-2014 The ROMS/TOMS Group                               **
+** Copyright (c) 2002-2019 The ROMS/TOMS Group                               **
 **   Licensed under a MIT/X style license                                    **
 **   See License_ROMS.txt                                                    **
 *******************************************************************************
@@ -9,7 +9,7 @@
 ** Options for Shore Face Planar Beach Test Case.
 **
 ** Application flag:   SHOREFACE
-** Input scripts:      ocean_shoreface.h
+** Input scripts:      roms_shoreface.h
 **                     sediment_shoreface.h
 */
 
@@ -25,8 +25,9 @@
 #define TS_MPDATA
 #define DJ_GRADPS
 #define SALINITY
+#define SPLINES_VDIFF
+#define SPLINES_VVISC
 #define SOLVE3D
-#define SPLINES
 
 #define MASKING
 #ifdef MASKING
@@ -70,6 +71,7 @@
 # if defined GLS_MIXING
 #  define KANTHA_CLAYSON
 #  define N2S2_HORAVG
+#  define RI_SPLINES
 #  undef CRAIG_BANNER
 #  undef CHARNOK
 #  undef ZOS_HSIG

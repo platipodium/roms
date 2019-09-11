@@ -2,7 +2,7 @@
       SUBROUTINE biology (ng,tile)
 !
 !========================================== Alexander F. Shchepetkin ===
-!  Copyright (c) 2002 ROMS/TOMS Group                                  !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !================================================== Hernan G. Arango ===
 !                                                                      !
 !  This routine computes the biological sources and sinks and adds     !
@@ -41,7 +41,7 @@
       END IF
 !
 #ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 15)
+      CALL wclock_on (ng, iNLM, 15, __LINE__, __FILE__)
 #endif
       CALL biology_tile (ng, tile,                                      &
      &                   LBi, UBi, LBj, UBj,                            &
@@ -58,7 +58,7 @@
      &                   OCEAN(ng) % t,                                 &
      &                   OCEAN(ng) % st)
 #ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 15)
+      CALL wclock_off (ng, iNLM, 15, __LINE__, __FILE__)
 #endif
       RETURN
       END SUBROUTINE biology
@@ -80,6 +80,7 @@
       USE mod_scalars
       USE mod_ocean
       USE mod_grid
+      USE dateclock_mod,   ONLY : caldate
 !
       implicit none
 !
@@ -117,13 +118,12 @@
 !
       integer :: i, j, k, ibio, itr, itrmx, itrc
       integer :: Iter
-      integer :: iday, month, year
 
       real(r8) :: cff1, cff2, cff3
       real(r8) :: Drate, Pmax, NOup, NHup
       real(r8) :: dtdays
       real(r8) :: LightLim, NOLim, NHLim, IronLim
-      real(r8) :: hour, yday, lat, k_phy, Dl, Par1
+      real(r8) :: yday, lat, k_phy, Dl, Par1
       real(r8) :: Sal1, Temp1, TmaxPhS, KtBm_PhS, TmaxPhL, KtBm_PhL
       real(r8) :: ParMax,TmaxMZS,KtBm_MZS,TmaxMZL,KtBm_MZL,BasalMet
       real(r8) :: Iron1, kfePh,respPh
@@ -158,7 +158,7 @@
 !----------------------
 #include "set_bounds.h"
 !
-      CALL caldate (r_date, tdays(ng), year, yday, month, iday, hour)
+      CALL caldate(tdays(ng), yd_dp=yday)
       dtdays = dt(ng)*sec2day/REAL(BioIter(ng),r8)
       k_phy = k_chl / ccr
 !

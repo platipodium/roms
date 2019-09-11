@@ -4,7 +4,7 @@
 !
 !svn $Id$
 !=======================================================================
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license           Hernan G. Arango   !
 !    See License_ROMS.txt                   Alexander F. Shchepetkin   !
 !==================================================== John C. Warner ===
@@ -46,7 +46,7 @@
 # include "tile.h"
 !
 # ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 34)
+      CALL wclock_on (ng, iNLM, 34, __LINE__, __FILE__)
 # endif
       CALL step3d_uv_tile (ng, tile,                                    &
      &                     LBi, UBi, LBj, UBj,                          &
@@ -59,8 +59,6 @@
 # ifdef WET_DRY
      &                     GRID(ng) % umask_wet,                        &
      &                     GRID(ng) % vmask_wet,                        &
-     &                     GRID(ng) % utmask_wet,                       &
-     &                     GRID(ng) % vtmask_wet,                       &
 # endif
      &                     GRID(ng) % om_v,                             &
      &                     GRID(ng) % on_u,                             &
@@ -102,7 +100,7 @@
      &                     GRID(ng) % Huon,                             &
      &                     GRID(ng) % Hvom)
 # ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 34)
+      CALL wclock_off (ng, iNLM, 34, __LINE__, __FILE__)
 # endif
 
       RETURN
@@ -118,7 +116,6 @@
 # endif
 # ifdef WET_DRY
      &                           umask_wet, vmask_wet,                  &
-     &                           utmask_wet, vtmask_wet,                &
 # endif
      &                           om_v, on_u, pm, pn,                    &
      &                           Hz, z_r, z_w,                          &
@@ -157,7 +154,7 @@
       USE u3dbc_mod, ONLY : u3dbc_tile
       USE v3dbc_mod, ONLY : v3dbc_tile
 # ifdef UV_WAVEDRAG
-      USE mod_tides
+      USE mod_tides, only : TIDES, drag_scale
 # endif
 !
 !  Imported variable declarations.
@@ -175,8 +172,6 @@
 #  ifdef WET_DRY
       real(r8), intent(in) :: umask_wet(LBi:,LBj:)
       real(r8), intent(in) :: vmask_wet(LBi:,LBj:)
-      real(r8), intent(inout) :: utmask_wet(LBi:,LBj:)
-      real(r8), intent(inout) :: vtmask_wet(LBi:,LBj:)
 #  endif
       real(r8), intent(in) :: om_v(LBi:,LBj:)
       real(r8), intent(in) :: on_u(LBi:,LBj:)
@@ -193,12 +188,12 @@
       real(r8), intent(in) :: DV_avg1(LBi:,LBj:)
       real(r8), intent(in) :: DU_avg2(LBi:,LBj:)
       real(r8), intent(in) :: DV_avg2(LBi:,LBj:)
-      real(r8), intent(inout) :: ru(LBi:,LBj:,0:,:)
-      real(r8), intent(inout) :: rv(LBi:,LBj:,0:,:)
 #  ifdef NEARSHORE_MELLOR
       real(r8), intent(in) :: ubar_stokes(LBi:,LBj:)
       real(r8), intent(in) :: vbar_stokes(LBi:,LBj:)
 #  endif
+      real(r8), intent(inout) :: ru(LBi:,LBj:,0:,:)
+      real(r8), intent(inout) :: rv(LBi:,LBj:,0:,:)
 #  ifdef DIAGNOSTICS_UV
       real(r8), intent(inout) :: DiaU2wrk(LBi:,LBj:,:)
       real(r8), intent(inout) :: DiaV2wrk(LBi:,LBj:,:)
@@ -229,8 +224,6 @@
 #  ifdef WET_DRY
       real(r8), intent(in) :: umask_wet(LBi:UBi,LBj:UBj)
       real(r8), intent(in) :: vmask_wet(LBi:UBi,LBj:UBj)
-      real(r8), intent(in) :: utmask_wet(LBi:UBi,LBj:UBj)
-      real(r8), intent(in) :: vtmask_wet(LBi:UBi,LBj:UBj)
 #  endif
       real(r8), intent(in) :: om_v(LBi:UBi,LBj:UBj)
       real(r8), intent(in) :: on_u(LBi:UBi,LBj:UBj)
@@ -247,12 +240,12 @@
       real(r8), intent(in) :: DV_avg1(LBi:UBi,LBj:UBj)
       real(r8), intent(in) :: DU_avg2(LBi:UBi,LBj:UBj)
       real(r8), intent(in) :: DV_avg2(LBi:UBi,LBj:UBj)
-      real(r8), intent(inout) :: ru(LBi:UBi,LBj:UBj,0:N(ng),2)
-      real(r8), intent(inout) :: rv(LBi:UBi,LBj:UBj,0:N(ng),2)
 #  ifdef NEARSHORE_MELLOR
       real(r8), intent(in) :: ubar_stokes(LBi:UBi,LBj:UBj)
       real(r8), intent(in) :: vbar_stokes(LBi:UBi,LBj:UBj)
 #  endif
+      real(r8), intent(inout) :: ru(LBi:UBi,LBj:UBj,0:N(ng),2)
+      real(r8), intent(inout) :: rv(LBi:UBi,LBj:UBj,0:N(ng),2)
 #  ifdef DIAGNOSTICS_UV
       real(r8), intent(inout) :: DiaU2wrk(LBi:UBi,LBj:UBj,NDM2d)
       real(r8), intent(inout) :: DiaV2wrk(LBi:UBi,LBj:UBj,NDM2d)
@@ -312,7 +305,7 @@
      &                      Akv(i  ,j,k))
             Hzk(i,k)=0.5_r8*(Hz(i-1,j,k)+                               &
      &                       Hz(i  ,j,k))
-# if defined SPLINES || defined DIAGNOSTICS_UV
+# if defined SPLINES_VVISC || defined DIAGNOSTICS_UV
             oHz(i,k)=1.0_r8/Hzk(i,k)
 # endif
           END DO
@@ -334,7 +327,7 @@
           DO i=IstrU,Iend
             u(i,j,k,nnew)=u(i,j,k,nnew)+                                &
      &                    DC(i,0)*ru(i,j,k,nrhs)
-# ifdef SPLINES
+# ifdef SPLINES_VVISC
             u(i,j,k,nnew)=u(i,j,k,nnew)*oHz(i,k)
 # endif
 # ifdef DIAGNOSTICS_UV
@@ -359,7 +352,7 @@
           END DO
         END DO
 
-# ifdef SPLINES
+# ifdef SPLINES_VVISC
 !
 !  Use conservative, parabolic spline reconstruction of vertical
 !  viscosity derivatives.  Then, time step vertical viscosity term
@@ -645,7 +638,7 @@
      &                        Akv(i,j  ,k))
               Hzk(i,k)=0.5_r8*(Hz(i,j-1,k)+                             &
      &                         Hz(i,j  ,k))
-# if defined SPLINES || defined DIAGNOSTICS_UV
+# if defined SPLINES_VVISC || defined DIAGNOSTICS_UV
               oHz(i,k)=1.0_r8/Hzk(i,k)
 # endif
             END DO
@@ -666,7 +659,7 @@
           DO k=1,N(ng)
             DO i=Istr,Iend
               v(i,j,k,nnew)=v(i,j,k,nnew)+DC(i,0)*rv(i,j,k,nrhs)
-# ifdef SPLINES
+# ifdef SPLINES_VVISC
               v(i,j,k,nnew)=v(i,j,k,nnew)*oHz(i,k)
 # endif
 # ifdef DIAGNOSTICS_UV
@@ -692,7 +685,7 @@
             END DO
           END DO
 
-# ifdef SPLINES
+# ifdef SPLINES_VVISC
 !
 !  Use conservative, parabolic spline reconstruction of vertical
 !  viscosity derivatives.  Then, time step vertical viscosity term
@@ -1032,9 +1025,6 @@
      &                       0.5_r8*(z_w(i-1,j,k)-z_w(i-1,j,k-1)+       &
      &                               z_w(i  ,j,k)-z_w(i  ,j,k-1)))
                 u(i,j,k,nnew)=SOURCES(ng)%Qsrc(is,k)*cff1
-# ifdef WET_DRY
-                utmask_wet(i,j)=1.0_r8
-# endif
               END DO
             ELSE
               DO k=1,N(ng)
@@ -1042,9 +1032,6 @@
      &                       0.5_r8*(z_w(i,j-1,k)-z_w(i,j-1,k-1)+       &
      &                               z_w(i,j  ,k)-z_w(i,j  ,k-1)))
                 v(i,j,k,nnew)=SOURCES(ng)%Qsrc(is,k)*cff1
-# ifdef WET_DRY
-                vtmask_wet(i,j)=1.0_r8
-# endif
               END DO
             END IF
           END IF
@@ -1265,9 +1252,6 @@
         DO k=1,N(ng)
           DO i=IstrP,IendT
             Huon(i,j,k)=Huon(i,j,k)-DC(i,k)*FC(i,0)
-#  if defined WET_DRY && defined NO_DRY_TRACER_CHANGE
-            Huon(i,j,k)=Huon(i,j,k)*utmask_wet(i,j)
-#  endif
           END DO
         END DO
 !
@@ -1487,9 +1471,6 @@
           DO k=1,N(ng)
             DO i=IstrT,IendT
               Hvom(i,j,k)=Hvom(i,j,k)-DC(i,k)*FC(i,0)
-#  if defined WET_DRY && defined NO_DRY_TRACER_CHANGE
-              Hvom(i,j,k)=Hvom(i,j,k)*vtmask_wet(i,j)
-#  endif
             END DO
           END DO
         END IF

@@ -4,7 +4,7 @@
 !
 !svn $Id$
 !=======================================================================
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                           Hernan G. Arango   !
 !========================================== Alexander F. Shchepetkin ===
@@ -36,7 +36,6 @@
       USE mod_mixing
 # endif
       USE mod_ocean
-      USE mod_scalars
       USE mod_stepping
 !
       USE pre_step3d_mod, ONLY : pre_step3d
@@ -101,7 +100,7 @@
 !-----------------------------------------------------------------------
 !
 # ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 21)
+      CALL wclock_on (ng, iNLM, 21, __LINE__, __FILE__)
 # endif
       CALL rhs3d_tile (ng, tile,                                        &
      &                 LBi, UBi, LBj, UBj,                              &
@@ -151,7 +150,7 @@
      &                 OCEAN(ng) % ru,                                  &
      &                 OCEAN(ng) % rv)
 # ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 21)
+      CALL wclock_off (ng, iNLM, 21, __LINE__, __FILE__)
 # endif
 # ifdef UV_VIS2
 !

@@ -1,6 +1,6 @@
 #include "cppdefs.h"
       MODULE cawdir_eval_mod
-#if defined NCEP_FLUXES || defined ALBEDO
+#if defined NCEP_FLUXES || defined ALBEDO_DIRDIFF
 ! ----------------------------------------------------------------------
 !  compute 24 hrs mean albedo at the marine surface layer
 ! ----------------------------------------------------------------------
@@ -29,7 +29,7 @@
 # include "tile.h"
 !
 # ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 43)
+      CALL wclock_on (ng, iNLM, 17, __LINE__, __FILE__)
 # endif
       CALL cawdir_eval_tile (ng, tile,                                  &
      &                     LBi, UBi, LBj, UBj,                          &
@@ -46,7 +46,7 @@
 # endif
      &                     FORCES(ng) % cawdir)
 # ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 43)
+      CALL wclock_off (ng, iNLM, 17, __LINE__, __FILE__)
 # endif
       RETURN
       END SUBROUTINE cawdir_eval
@@ -71,6 +71,7 @@
 !
       USE mod_param
       USE mod_scalars
+      USE dateclock_mod,   ONLY : caldate
 !
       USE bc_2d_mod, ONLY : bc_r2d_tile
 # ifdef DISTRIBUTE
@@ -120,7 +121,7 @@
       real(r8) :: sin2, cos2, stot, sads, bioday
       real(r8) :: biohr, hangle, cosz, srad
       real(r8) :: sdir, sdif, altdeg, cfac, ssurf
-      real(r8) :: albdir, rlat, hour, yday
+      real(r8) :: albdir, rlat, yday
 
 # include "set_bounds.h"
 !
@@ -151,7 +152,7 @@
 ! --- compute 24 hrs mean albedo at the marine surface layer
 ! --- ------------------------------------------------------------------
 !
-      call caldate (r_date,tdays(ng),year,yday,month,iday,hour)
+      call caldate (tdays(ng), yd_dp=yday, dd_dp=day)
 !0 < day < 364
       day=mod(yday-1._r8,365._r8)
 !day-number-angle, in radians
@@ -199,7 +200,7 @@
             bioday=day+(npart-.5_r8)*fraci*.5_r8
 !
             biohr=bioday*86400._r8                  !hour of day in seconds
-            biohr=mod(biohr+43200._r8,86400._r8) !hour of day;  biohr=0  at noon
+            biohr=mod(biohr+43200._r8,86400._r8)    !hour of day;  biohr=0  at noon
             hangle=pi2*biohr/86400._r8              !hour angle, in radians
 !
             cosz=min(1._r8,max(0._r8,sin2+cos2*cos(hangle)))

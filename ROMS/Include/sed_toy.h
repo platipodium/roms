@@ -1,7 +1,7 @@
 /*
 ** svn $Id$
 *******************************************************************************
-** Copyright (c) 2002-2014 The ROMS/TOMS Group                               **
+** Copyright (c) 2002-2019 The ROMS/TOMS Group                               **
 **   Licensed under a MIT/X style license                                    **
 **   See License_ROMS.txt                                                    **
 *******************************************************************************
@@ -9,7 +9,7 @@
 ** Options for One-Dimensional (vertical) Sediment Toy.
 **
 ** Application flag:   SED_TOY
-** Input scripts:      ocean_sed_toy.in
+** Input scripts:      roms_sed_toy.in
 **                     sediment_sed_toy.in
 */
 
@@ -20,13 +20,14 @@
 #undef  TS_C2VADVECTION
 #define TS_MPDATA
 #undef  SALINITY
-#define SPLINES
 #define OUT_DOUBLE
 #define ANA_GRID
 #define ANA_INITIAL
 #define ANA_SMFLUX
 #define SOLVE3D
 #ifdef SOLVE3D
+# define SPLINES_VDIFF
+# define SPLINES_VVISC
 # define ANA_SEDIMENT
 # define ANA_BPFLUX
 # define ANA_BSFLUX
@@ -67,6 +68,7 @@
 #ifdef GLS_MIXING
 # define KANTHA_CLAYSON
 # define N2S2_HORAVG
+# define RI_SPLINES
 # undef  CRAIG_BANNER
 # undef  CHARNOK
 # undef  ZOS_HSIG

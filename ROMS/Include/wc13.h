@@ -1,7 +1,7 @@
 /*
 ** svn $Id$
 *******************************************************************************
-** Copyright (c) 2002-2014 The ROMS/TOMS Group                               **
+** Copyright (c) 2002-2019 The ROMS/TOMS Group                               **
 **   Licensed under a MIT/X style license                                    **
 **   See License_ROMS.txt                                                    **
 *******************************************************************************
@@ -9,7 +9,7 @@
 ** Options for the California Current System, 1/3 degree resolution.
 **
 ** Application flag:   WC13
-** Input script:       ocean_wc13.in
+** Input script:       roms_wc13.in
 **                     s4dvar.in
 **
 ** Available Drivers options: choose only one and activate it in the
@@ -57,6 +57,8 @@
 #define UV_VIS2
 #define MIX_S_UV
 #define MIX_GEO_TS
+#define SPLINES_VDIFF
+#define SPLINES_VVISC
 #define TS_DIF2
 #define TS_U3HADVECTION
 #define TS_C4VADVECTION
@@ -66,7 +68,6 @@
 #define CURVGRID
 #define PROFILE
 #define SPHERICAL
-#define SPLINES
 #define MASKING
 
 #ifdef NLM_DRIVER
@@ -81,6 +82,7 @@
 #ifdef GLS_MIXING
 # define N2S2_HORAVG
 # define KANTHA_CLAYSON
+# define RI_SPLINES
 #endif
 
 /*

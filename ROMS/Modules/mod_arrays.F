@@ -3,7 +3,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -43,9 +43,6 @@
 #ifdef NESTING
       USE mod_nesting, ONLY : allocate_nesting, initialize_nesting
 #endif
-#if defined ASSIMILATION || defined NUDGING
-      USE mod_obs, ONLY : allocate_obs, initialize_obs
-#endif
       USE mod_ocean, ONLY : allocate_ocean, initialize_ocean
 #if defined SEDIMENT || defined BBL_MODEL
       USE mod_sedbed, ONLY : allocate_sedbed, initialize_sedbed
@@ -60,7 +57,7 @@
 #ifdef BBL_MODEL
       USE mod_bbl, ONLY : allocate_bbl, initialize_bbl
 #endif
-#ifdef ICE_MODEL
+#if defined ICE_MODEL || defined CICE_MODEL
       USE mod_ice, ONLY : allocate_ice, initialize_ice
 #endif
 !
@@ -72,9 +69,12 @@
 !
 !  Local variable declarations.
 !
+      logical :: LallocateClima
+!
       integer :: ng, thread, tile
+      integer :: IminS, ImaxS, JminS, JmaxS
       integer :: LBi, UBi, LBj, UBj, LBij, UBij
-
+!
       integer, parameter :: model = 0
 
 #ifdef PROFILE
@@ -83,12 +83,12 @@
 !  Turn on allocation time wall clock.
 !-----------------------------------------------------------------------
 !
-        DO ng=1,Ngrids
-          DO thread=THREAD_RANGE
-            CALL wclock_on (ng, iNLM, 1)
-          END DO
-!$OMP BARRIER
+      DO ng=1,Ngrids
+        DO thread=THREAD_RANGE
+          CALL wclock_on (ng, iNLM, 1, __LINE__, __FILE__)
         END DO
+!$OMP BARRIER
+      END DO
 #endif
 !
 !-----------------------------------------------------------------------
@@ -101,6 +101,15 @@
 #else
         tile=0
 #endif
+
+#if defined AD_SENSITIVITY   || defined IS4DVAR_SENSITIVITY || \
+    defined OPT_OBSERVATIONS || defined SENSITIVITY_4DVAR   || \
+    defined SO_SEMI
+        LallocateClima=.TRUE.
+#else
+        LallocateClima=.FALSE.
+#endif
+
         DO ng=1,Ngrids
 !$OMP MASTER
           LBi=BOUNDS(ng)%LBi(tile)
@@ -125,10 +134,10 @@
 #ifdef BBL_MODEL
           CALL allocate_bbl (ng, LBi, UBi, LBj, UBj)
 #endif
-#ifdef ICE_MODEL
+#if defined ICE_MODEL || defined CICE_MODEL
           CALL allocate_ice (ng, LBi, UBi, LBj, UBj)
 #endif
-          IF (Lclimatology(ng)) THEN
+          IF (LallocateClima.or.Lclimatology(ng)) THEN
             CALL allocate_clima (ng, LBi, UBi, LBj, UBj)
           END IF
 #ifdef SOLVE3D
@@ -140,9 +149,6 @@
           CALL allocate_forces (ng, LBi, UBi, LBj, UBj)
           CALL allocate_grid (ng, LBi, UBi, LBj, UBj, LBij, UBij)
           CALL allocate_mixing (ng, LBi, UBi, LBj, UBj)
-#if defined ASSIMILATION || defined NUDGING
-          CALL allocate_obs (ng, LBi, UBi, LBj, UBj)
-#endif
           CALL allocate_ocean (ng, LBi, UBi, LBj, UBj)
 #if defined SEDIMENT || defined BBL_MODEL
           CALL allocate_sedbed (ng, LBi, UBi, LBj, UBj)
@@ -198,12 +204,12 @@
 #ifdef BBL_MODEL
           CALL initialize_bbl (ng, tile)
 #endif
-#ifdef ICE_MODEL
+#if defined ICE_MODEL || defined CICE_MODEL
           CALL initialize_ice (ng, tile)
 #endif
           CALL initialize_boundary (ng, tile, model)
 
-          IF (Lclimatology(ng)) THEN
+          IF (LallocateClima.or.Lclimatology(ng)) THEN
             CALL initialize_clima (ng, tile)
           END IF
 #ifdef SOLVE3D
@@ -215,9 +221,6 @@
           CALL initialize_forces (ng, tile, model)
           CALL initialize_grid (ng, tile, model)
           CALL initialize_mixing (ng, tile, model)
-#if defined ASSIMILATION || defined NUDGING
-          CALL initialize_obs (ng, tile)
-#endif
           CALL initialize_ocean (ng, tile, model)
 #if defined SEDIMENT || defined BBL_MODEL
           CALL initialize_sedbed (ng, tile, model)
@@ -237,11 +240,11 @@
 !
       DO ng=1,Ngrids
         DO thread=THREAD_RANGE
-          CALL wclock_off (ng, iNLM, 1)
+          CALL wclock_off (ng, iNLM, 1, __LINE__, __FILE__)
         END DO
 !$OMP BARRIER
       END DO
 #endif
-
+!
       RETURN
       END SUBROUTINE mod_arrays

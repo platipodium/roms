@@ -2,7 +2,7 @@
 !
 !svn $Id$
 !************************************************** Hernan G. Arango ***
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !***********************************************************************
@@ -60,7 +60,7 @@
       END IF
 !
 #ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 15)
+      CALL wclock_on (ng, iNLM, 15, __LINE__, __FILE__)
 #endif
       CALL biology_tile (ng, tile,                                      &
      &                   LBi, UBi, LBj, UBj, N(ng), NT(ng),             &
@@ -89,7 +89,7 @@
      &                   OCEAN(ng) % t)
 
 #ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 15)
+      CALL wclock_off (ng, iNLM, 15, __LINE__, __FILE__)
 #endif
       RETURN
       END SUBROUTINE biology
@@ -335,7 +335,7 @@
           DO i=Istr,Iend
 !  Set concentration and depth parameters for FeD climatology
 !  Fe concentration in (micromol-Fe/m3, or nM-Fe)
-	    h_max = 200.0_r8
+            h_max = 200.0_r8
             Fe_max = 2.0_r8
 !  Set nudging time scales to 5 days
             Fe_rel = 5.0_r8
@@ -353,7 +353,7 @@
 #endif
 !
 #if defined IRON_LIMIT && defined IRON_RSIN
-!  Variable Si:N ratio for dimatoms based on dissolved iron concentration
+!  Variable Si:N ratio for diatoms based on dissolved iron concentration
 !  Si:N varies between 1:1 (high iron) and 3:1 (low iron)
         DO k=1,N(ng)
           DO i=Istr,Iend
@@ -1400,11 +1400,11 @@
 
 #ifdef PRIMARY_PROD
         DO i=Istr,Iend
-	  Bio_NPP(i,j) = 0.0_r8
+          Bio_NPP(i,j) = 0.0_r8
         END DO
         DO k=1,N(ng)
           DO i=Istr,Iend
-	    Bio_NPP(i,j) = Bio_NPP(i,j) + Hz(i,j,k)*NPP_slice(i,k)
+            Bio_NPP(i,j) = Bio_NPP(i,j) + Hz(i,j,k)*NPP_slice(i,k)
           END DO
         END DO
 #endif

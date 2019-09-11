@@ -3,7 +3,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -41,7 +41,7 @@
 #include "tile.h"
 !
 #ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 7)
+      CALL wclock_on (ng, iNLM, 7, __LINE__, __FILE__)
 #endif
       CALL diag_tile (ng, tile,                                         &
      &                LBi, UBi, LBj, UBj,                               &
@@ -71,7 +71,7 @@
       CALL ana_diag (ng, tile, iNLM)
 #endif
 #ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 7)
+      CALL wclock_off (ng, iNLM, 7, __LINE__, __FILE__)
 #endif
       RETURN
       END SUBROUTINE diag
@@ -147,7 +147,7 @@
       real(r8), intent(in) :: rho(LBi:UBi,LBj:UBj,N(ng))
       real(r8), intent(in) :: u(LBi:UBi,LBj:UBj,N(ng),2)
       real(r8), intent(in) :: v(LBi:UBi,LBj:UBj,N(ng),2)
-      real(r8), intent(in) :: t(LBi:UBi,LBj:UBj,N(ng),NT(ng),2)
+      real(r8), intent(in) :: t(LBi:UBi,LBj:UBj,N(ng),3,NT(ng))
       real(r8), intent(in) :: wvel(LBi:UBi,LBj:UBj,0:N(ng))
 # endif
 # ifdef ICESHELF
@@ -160,7 +160,9 @@
 !
 !  Local variable declarations.
 !
+#ifdef BIOLOGY
       integer :: ibt, itrc
+#endif
       integer :: NSUB, i, ispace, j, k, trd
       integer :: my_max_Ci, my_max_Cj, my_max_Ck
 #ifdef DISTRIBUTE
@@ -168,7 +170,7 @@
 #  ifdef BIOLOGY
       integer :: Nreduce
 #  else
-      integer, parameter :: Nreduce = 5
+      integer, parameter :: Nreduce = 6
 #  endif
       integer, parameter :: Ncourant = 7
 # else
@@ -192,16 +194,15 @@
 #endif
       real(r8) :: my_maxspeed, u2v2
 #ifdef SOLVE3D
-      real(r8) :: my_maxrho
+      real(r8) :: my_maxrho, my_mintemp
 # ifdef BIOLOGY
       real(r8) :: my_maxbio(NBT)
 # endif
 #endif
       real(r8), dimension(IminS:ImaxS,JminS:JmaxS) :: ke2d
       real(r8), dimension(IminS:ImaxS,JminS:JmaxS) :: pe2d
-      real(r8), dimension(IminS:ImaxS,JminS:JmaxS) :: uvmax
       integer :: ii_max, jj_max, kk_max
-      real(r8) :: uv_max
+      real(r8) :: uv_max, ts_min
 
       character (len=8 ) :: kechar, pechar
       character (len=60) :: frmt
@@ -215,7 +216,7 @@
 !
 #ifdef DISTRIBUTE
 # ifdef BIOLOGY
-      Nreduce = 5 + NBT
+      Nreduce = 6 + NBT
 # endif
       IF (.not. allocated(buffer))    allocate (buffer(Nreduce))
       IF (.not. allocated(op_handle)) allocate (op_handle(Nreduce))
@@ -234,7 +235,8 @@
         my_max_Ck=0
         my_maxspeed=0.0_r8
 #ifdef SOLVE3D
-        my_maxrho=-1.0E+20_r8
+        my_maxrho=-spval
+        my_mintemp=1.0E+20_r8
 # ifdef BIOLOGY
         DO ibt=1,NBT
           my_maxbio(ibt)=-1.0E+20_r8
@@ -277,6 +279,7 @@
               END IF
               my_maxspeed=MAX(my_maxspeed,SQRT(0.5_r8*u2v2))
               my_maxrho=MAX(my_maxrho,rho(i,j,k))
+              my_mintemp=MIN(my_mintemp,t(i,j,k,nstp,itemp))
             END DO
           END DO
 # ifdef BIOLOGY
@@ -378,19 +381,52 @@
         END IF
 #endif
 !$OMP CRITICAL (NL_DIAGNOSTICS)
-        IF (tile_count.eq.0) THEN
-          volume=my_volume
-          avgke=my_avgke
-          avgpe=my_avgpe
-          maxspeed(ng)=my_maxspeed
+!!      IF (tile_count.eq.0) THEN
+!!        volume=0.0_r8
+!!        avgke=0.0_r8
+!!        avgpe=0.0_r8
+!!        maxspeed(ng)=0.0_r8
 #ifdef SOLVE3D
           maxrho(ng)=my_maxrho
+          mintemp(ng)=my_mintemp
 # ifdef BIOLOGY
           DO ibt=1,NBT
             maxbio(ibt,ng)=0.0_r8
           END DO
 # endif
 #endif
+!!        max_C =0.0_r8
+!!        max_Cu=0.0_r8
+!!        max_Cv=0.0_r8
+#ifdef SOLVE3D
+!!        max_Cw=0.0_r8
+#endif
+!!        max_Ci=0
+!!        max_Cj=0
+#ifdef SOLVE3D
+!!        max_Ck=0
+#endif
+!!      END IF
+        volume=volume+my_volume
+        avgke=avgke+my_avgke
+        avgpe=avgpe+my_avgpe
+        maxspeed(ng)=MAX(maxspeed(ng),my_maxspeed)
+#ifdef SOLVE3D
+        maxrho(ng)=MAX(maxrho(ng),my_maxrho)
+        mintemp(ng)=MIN(mintemp(ng),my_mintemp)
+# ifdef BIOLOGY
+        DO ibt=1,NBT
+          maxbio(ibt,ng)=MAX(maxbio(ibt,ng),my_maxbio(ibt))
+        END DO
+# endif
+#endif
+        IF (my_max_C.eq.max_C) THEN
+          max_Ci=MIN(max_Ci,my_max_Ci)
+          max_Cj=MIN(max_Cj,my_max_Cj)
+#ifdef SOLVE3D
+          max_Ck=MIN(max_Ck,my_max_Ck)
+#endif
+        ELSE IF (my_max_C.gt.max_C) THEN
           max_C =my_max_C
           max_Cu=my_max_Cu
           max_Cv=my_max_Cv
@@ -402,38 +438,6 @@
 #ifdef SOLVE3D
           max_Ck=my_max_Ck
 #endif
-        ELSE
-          volume=volume+my_volume
-          avgke=avgke+my_avgke
-          avgpe=avgpe+my_avgpe
-          maxspeed(ng)=MAX(maxspeed(ng),my_maxspeed)
-#ifdef SOLVE3D
-          maxrho(ng)=MAX(maxrho(ng),my_maxrho)
-# ifdef BIOLOGY
-          DO ibt=1,NBT
-            maxbio(ibt,ng)=MAX(maxbio(ibt,ng),my_maxbio(ibt))
-          END DO
-# endif
-#endif
-          IF (my_max_C.eq.max_C) THEN
-            max_Ci=MIN(max_Ci,my_max_Ci)
-            max_Cj=MIN(max_Cj,my_max_Cj)
-#ifdef SOLVE3D
-            max_Ck=MIN(max_Ck,my_max_Ck)
-#endif
-          ELSE IF (my_max_C.gt.max_C) THEN
-            max_C =my_max_C
-            max_Cu=my_max_Cu
-            max_Cv=my_max_Cv
-#ifdef SOLVE3D
-            max_Cw=my_max_Cw
-#endif
-            max_Ci=my_max_Ci
-            max_Cj=my_max_Cj
-#ifdef SOLVE3D
-            max_Ck=my_max_Ck
-#endif
-          END IF
         END IF
         tile_count=tile_count+1
         IF (tile_count.eq.NSUB) THEN
@@ -445,9 +449,10 @@
           buffer(4)=maxspeed(ng)
 # ifdef SOLVE3D
           buffer(5)=maxrho(ng)
+          buffer(6)=mintemp(ng)
 #  ifdef BIOLOGY
           DO ibt=1,NBT
-            buffer(5+ibt)=maxbio(ibt,ng)
+            buffer(6+ibt)=maxbio(ibt,ng)
           END DO
 #  endif
 # endif
@@ -457,9 +462,10 @@
           op_handle(4)='MAX'
 # ifdef SOLVE3D
           op_handle(5)='MAX'
+          op_handle(6)='MIN'
 #  ifdef BIOLOGY
           DO ibt=1,NBT
-            op_handle(5+ibt)='MAX'
+            op_handle(6+ibt)='MAX'
           END DO
 #  endif
 # endif
@@ -470,9 +476,10 @@
           maxspeed(ng)=buffer(4)
 # ifdef SOLVE3D
           maxrho(ng)=buffer(5)
+          mintemp(ng)=buffer(6)
 #  ifdef BIOLOGY
           DO ibt=1,NBT
-            maxbio(ibt,ng)=buffer(5+ibt)
+            maxbio(ibt,ng)=buffer(6+ibt)
           END DO
 #  endif
 # endif
@@ -508,7 +515,7 @@
           IF (first_time(ng).eq.0) THEN
             first_time(ng)=1
             IF (Master.and.(ng.eq.1)) THEN
-              WRITE (stdout,10) 'STEP', 'Day HH:MM:SS',                 &
+              WRITE (stdout,10) 'TIME-STEP', 'YYYY-MM-DD hh:mm:ss.ss',  &
      &                          'KINETIC_ENRG', 'POTEN_ENRG',           &
 #ifdef NESTING
      &                          'TOTAL_ENRG', 'NET_VOLUME', 'Grid'
@@ -523,22 +530,23 @@
      &                          ' C Max', 'Max Speed'
 #endif
 #ifdef NESTING
- 10           FORMAT (/,3x,a,3x,a,2x,a,3x,a,4x,a,4x,a,2x,a)
+ 10           FORMAT (/,1x,a,1x,a,2x,a,3x,a,4x,a,4x,a,2x,a)
 #else
- 10           FORMAT (/,3x,a,3x,a,2x,a,3x,a,4x,a,4x,a)
+ 10           FORMAT (/,1x,a,1x,a,2x,a,3x,a,4x,a,4x,a)
 #endif
- 20           FORMAT (10x,a,7x,a,12x,a,10x,a,7x,a,/)
+ 20           FORMAT (21x,a,7x,a,12x,a,10x,a,7x,a,/)
             END IF
           END IF
-          IF (Master) THEN
-            WRITE (stdout,30) iic(ng)-1, time_code(ng),                 &
+          IF (Master) THEN    ! restart counter after 10 billion steps
+            WRITE (stdout,30) INT(MOD(REAL(iic(ng)-1,r8),1.0E+10_r8)),  &
+                              time_code(ng),                            &
 #ifdef NESTING
      &                        avgke, avgpe, avgkp, volume, ng
 #else
      &                        avgke, avgpe, avgkp, volume
 #endif
 #ifdef SOLVE3D
-            ispace=24-(6+Idigits(ng)+Jdigits(ng)+Kdigits(ng))
+            ispace=35-(6+Idigits(ng)+Jdigits(ng)+Kdigits(ng))
             WRITE (frmt,40) ispace,                                     &
      &                      '"("', Idigits(ng), Idigits(ng),            &
      &                      '","', Jdigits(ng), Jdigits(ng),            &
@@ -547,7 +555,7 @@
      &                          max_Ck, max_Cu, max_Cv, max_Cw,         &
      &                          maxspeed(ng)
 #else
-            ispace=24-(5+Idigits(ng)+Jdigits(ng))
+            ispace=35-(5+Idigits(ng)+Jdigits(ng))
             WRITE (frmt,40) ispace,                                     &
      &                      '"("', Idigits(ng), Idigits(ng),            &
      &                      '","', Jdigits(ng), Jdigits(ng), '")"'
@@ -557,16 +565,16 @@
 #endif
             CALL my_flush (stdout)
 #ifdef NESTING
- 30         FORMAT (i7,1x,a,4(1pe14.6),2x,i2.2)
+ 30         FORMAT (i10,1x,a,4(1pe14.6),2x,i2.2)
 #else
- 30         FORMAT (i7,1x,a,4(1pe14.6))
+ 30         FORMAT (i10,1x,a,4(1pe14.6))
 #endif
  40         FORMAT ('(',i2.2,'x,',a,',i',i1,'.',i1,',',                 &
      &                            a,',i',i1,'.',i1,',',                 &
 #ifdef SOLVE3D
      &                            a,',i',i1,'.',i1,',',                 &
 #endif
-     &                            a,',t24,4(1pe13.6,1x))')
+     &                            a,',t35,4(1pe13.6,1x))')
           END IF
 !
 !  If blowing-up, set exit_flag to stop computations.
@@ -604,8 +612,8 @@
                 END DO
               END DO
             END DO
-            IF (uv_max.gt.max_speed) THEN
-              print *, 'DIAG speed ijk ', uv_max, ii_max, jj_max, kk_max
+            IF (uv_max .gt. max_speed) THEN
+              print *, 'DIAG speed ijk ', uv_max, ii_max, jj_max, kk_max, ng
             END IF
 #else
             uv_max = max(ubar(Istr,Jstr,krhs),vbar(Istr,Jstr,krhs))
@@ -619,7 +627,7 @@
               END DO
             END DO
             IF (uv_max.gt.max_speed) THEN
-              print *, 'DIAG speed ij ', uv_max, ii_max, jj_max
+              print *, 'DIAG speed ij ', uv_max, ii_max, jj_max, ng
             END IF
 #endif
           END IF
@@ -630,9 +638,32 @@
 !  salinity.  This is a good way to screen for very bad values which
 !  indicates that the model is blowing-up.
 !
-          IF (maxrho(ng).gt.max_rho) THEN
+          IF (maxrho(ng) .gt. max_rho) THEN
             exit_flag=1
-            IF (Master) print *, 'DIAG rho trouble ', maxrho(ng)
+            IF (Master) print *, 'DIAG rho trouble ', maxrho(ng), ng
+          END IF
+          IF (mintemp(ng) .lt. min_temp) THEN
+            exit_flag=1
+            IF (Master) print *, 'DIAG temperature trouble ', mintemp(ng), ng
+            ii_max = Istr
+            jj_max = Jstr
+            kk_max = 1
+            ts_min = t(Istr,Jstr,1,nstp,itemp)
+            DO j=Jstr,Jend
+              DO k=1,N(ng)
+                DO i=Istr,Iend
+                  IF (t(i,j,k,itemp,nstp) < ts_min) THEN
+                    ii_max = i
+                    jj_max = j
+                    kk_max = k
+                    ts_min = t(i,j,k,nstp,itemp)
+                  END IF
+                END DO
+              END DO
+            END DO
+            IF (ts_min .lt. min_temp) THEN
+              print *, 'DIAG temp ijk ', ts_min, ii_max, jj_max, kk_max, ng
+            END IF
           END IF
 # ifdef BIOLOGY
           DO ibt=1,NBT
@@ -640,10 +671,38 @@
               IF (Master) print *, 'BIO trouble in DIAG ', maxbio(:,ng)
               exit_flag=1
             END IF
+            WRITE (pechar,'(1pe8.1)') maxbio(ibt,ng)
+            DO i=1,8
+              IF ((pechar(i:i).eq.'N').or.(pechar(i:i).eq.'n').or.      &
+     &            (pechar(i:i).eq.'*')) THEN
+                IF (Master) print *, 'BIO trouble in DIAG ', pechar, ibt
+                exit_flag=1
+              END IF
+            END DO
           END DO
 # endif
 #endif
-
+!
+!  Reset global reduction variables for the next call.
+!
+          volume=0.0_r8
+          avgke=0.0_r8
+          avgpe=0.0_r8
+          maxspeed(ng)=-Large
+#ifdef SOLVE3D
+          maxrho(ng)=-Large
+#endif
+          max_C =0.0_r8
+          max_Cu=0.0_r8
+          max_Cv=0.0_r8
+#ifdef SOLVE3D
+          max_Cw=0.0_r8
+#endif
+          max_Ci=0
+          max_Cj=0
+#ifdef SOLVE3D
+          max_Ck=0
+#endif
         END IF
 !$OMP END CRITICAL (NL_DIAGNOSTICS)
       END IF

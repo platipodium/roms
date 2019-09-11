@@ -4,7 +4,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -33,10 +33,10 @@
       USE mod_netcdf
       USE mod_scalars
 
-#if !defined PARALLEL_IO  && defined DISTRIBUTE
-!
+#if !defined PARALLEL_OUT  && defined DISTRIBUTE
       USE distribute_mod, ONLY : mp_bcasti
 #endif
+      USE strings_mod, ONLY : FoundError
 !
       implicit none
 !
@@ -56,7 +56,7 @@
 
       integer :: def_dim
 
-#if !defined PARALLEL_IO  && defined DISTRIBUTE
+#if !defined PARALLEL_OUT  && defined DISTRIBUTE
       integer, dimension(3) :: buffer
 #endif
 !
@@ -68,14 +68,15 @@
 
       IF (OutThread) THEN
         status=nf90_def_dim(ncid, TRIM(DimName), DimSize, DimId)
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) WRITE (stdout,10) TRIM(DimName), TRIM(ncname)
           exit_flag=3
           ioerror=status
         END IF
       END IF
 
-#if !defined PARALLEL_IO  && defined DISTRIBUTE
+#if !defined PARALLEL_OUT  && defined DISTRIBUTE
 !
 !  Broadcast information to all threads in the group.
 !

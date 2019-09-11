@@ -2,7 +2,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -55,9 +55,10 @@
       USE mod_netcdf
       USE mod_scalars
 !
-#if !defined PARALLEL_IO  && defined DISTRIBUTE
+#if !defined PARALLEL_IN  && defined DISTRIBUTE
       USE distribute_mod, ONLY : mp_bcasti, mp_bcasts
 #endif
+      USE strings_mod,    ONLY : FoundError
 !
       implicit none
 !
@@ -71,8 +72,8 @@
 !
 ! Local variable declarations
 !
-      integer :: i, ibry, ie, ifield, is, ne, lstr, lvar, status
-#if !defined PARALLEL_IO  && defined DISTRIBUTE
+      integer :: i, ibry, ie, ifield, is, ne, status
+#if !defined PARALLEL_IN  && defined DISTRIBUTE
       integer, dimension(2) :: ibuffer
 #endif
 
@@ -91,7 +92,8 @@
 !
       IF (InpThread) THEN
         status=nf90_get_att(ncid, nf90_global, TRIM(aname), lbc_att)
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           WRITE (stdout,10) TRIM(aname), TRIM(ncname),                  &
      &                      TRIM(SourceFile)
           exit_flag=3
@@ -99,7 +101,7 @@
         END IF
       END IF
 
-#if !defined PARALLEL_IO  && defined DISTRIBUTE
+#if !defined PARALLEL_IN  && defined DISTRIBUTE
 !
 !  Broadcast error flags to all processors in the group.
 !
@@ -144,7 +146,7 @@
             ie=LEN_TRIM(line)                 ! last attribute entry
           END IF
           Bstring=TRIM(ADJUSTL(line(is:ie)))  ! extract boundary string
-	  ne=MIN(LEN_TRIM(Bstring), 28)       ! north keyword < 7 chars
+          ne=MIN(LEN_TRIM(Bstring), 28)       ! north keyword < 7 chars
           string(1)=Bstring( 1: 7)            ! west  keyword
           string(2)=Bstring( 8:14)            ! south keyword
           string(3)=Bstring(15:21)            ! east  keyword

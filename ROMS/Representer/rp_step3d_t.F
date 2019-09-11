@@ -4,7 +4,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group       Andrew M. Moore   !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group       Andrew M. Moore   !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -55,7 +55,7 @@
 # include "tile.h"
 !
 # ifdef PROFILE
-      CALL wclock_on (ng, iRPM, 35)
+      CALL wclock_on (ng, iRPM, 35, __LINE__, __FILE__)
 # endif
       CALL rp_step3d_t_tile (ng, tile,                                  &
      &                       LBi, UBi, LBj, UBj,                        &
@@ -66,7 +66,7 @@
      &                       GRID(ng) % umask,                          &
      &                       GRID(ng) % vmask,                          &
 # endif
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
 #  ifdef WET_DRY
      &                       GRID(ng) % rmask_wet,                      &
      &                       GRID(ng) % umask_wet,                      &
@@ -101,7 +101,7 @@
      &                       OCEAN(ng) % t,                             &
      &                       OCEAN(ng) % tl_t)
 # ifdef PROFILE
-      CALL wclock_off (ng, iRPM, 35)
+      CALL wclock_off (ng, iRPM, 35, __LINE__, __FILE__)
 # endif
 
       RETURN
@@ -115,7 +115,7 @@
 # ifdef MASKING
      &                             rmask, umask, vmask,                 &
 # endif
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
 #  ifdef WET_DRY
      &                             rmask_wet, umask_wet, vmask_wet,     &
 #  endif
@@ -150,7 +150,7 @@
 #  endif
       USE mp_exchange_mod, ONLY : mp_exchange4d
 # endif
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
 !!    USE rp_mpdata_adiff_mod
 # endif
       USE rp_t3dbc_mod, ONLY : rp_t3dbc_tile
@@ -168,7 +168,7 @@
       real(r8), intent(in) :: umask(LBi:,LBj:)
       real(r8), intent(in) :: vmask(LBi:,LBj:)
 #  endif
-#  ifdef TS_MPDATA
+#  ifdef TS_MPDATA_NOT_YET
 #   ifdef WET_DRY
       real(r8), intent(in) :: rmask_wet(LBi:,LBj:)
       real(r8), intent(in) :: umask_wet(LBi:,LBj:)
@@ -224,7 +224,7 @@
       real(r8), intent(in) :: umask(LBi:UBi,LBj:UBj)
       real(r8), intent(in) :: vmask(LBi:UBi,LBj:UBj)
 #  endif
-#  ifdef TS_MPDATA
+#  ifdef TS_MPDATA_NOT_YET
 #   ifdef WET_DRY
       real(r8), intent(in) :: rmask_wet(LBi:UBi,LBj:UBj)
       real(r8), intent(in) :: umask_wet(LBi:UBi,LBj:UBj)
@@ -264,7 +264,11 @@
 !
 !  Local variable declarations.
 !
+      integer :: Isrc, Jsrc
       integer :: i, ic, is, itrc, j, k, ltrc
+# if defined AGE_MEAN && defined T_PASSIVE
+      integer :: iage
+# endif
 # ifdef DIAGNOSTICS_TS
       integer :: idiag
 # endif
@@ -295,7 +299,7 @@
 
       real(r8), dimension(IminS:ImaxS,JminS:JmaxS,N(ng)) :: oHz
       real(r8), dimension(IminS:ImaxS,JminS:JmaxS,N(ng)) :: tl_oHz
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
 #  ifdef DIAGNOSTICS_TS
 !!    real(r8), dimension(IminS:ImaxS,JminS:JmaxS,3) :: Dhadv
 !!    real(r8), dimension(IminS:ImaxS,JminS:JmaxS,N(ng),NT(ng)) :: Dvadv
@@ -322,7 +326,7 @@
 !
 !  Compute inverse thickness.
 !
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
 #  define I_RANGE Istrm2,Iendp2
 #  define J_RANGE Jstrm2,Jendp2
 # else
@@ -343,7 +347,7 @@
       END DO
 # undef I_RANGE
 # undef J_RANGE
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
 !
 !  The MPDATA algorithm requires a three-point footprint, so exchange
 !  boundary data on t(:,:,:,nnew,:) so other processes computed earlier
@@ -416,7 +420,7 @@
             END DO
           END DO
 
-# elif defined TS_MPDATA
+# elif defined TS_MPDATA_NOT_YET
 !
 !  First-order, upstream differences horizontal advective fluxes.
 !
@@ -695,78 +699,90 @@
 !  Apply tracers point sources to the horizontal advection terms,
 !  if any.
 !
-          IF (.not.LwSrc(ng).and.ANY(LtracerSrc(:,ng))) THEN
+          IF (LuvSrc(ng)) THEN
             DO is=1,Nsrc(ng)
-              i=SOURCES(ng)%Isrc(is)
-              j=SOURCES(ng)%Jsrc(is)
+              Isrc=SOURCES(ng)%Isrc(is)
+              Jsrc=SOURCES(ng)%Jsrc(is)
               IF (INT(SOURCES(ng)%Dsrc(is)).eq.0) THEN
-# ifdef TS_MPDATA
-                IF (((IstrUm2.le.i).and.(i.le.Iendp3)).and.             &
-     &              ((JstrVm2.le.j).and.(j.le.Jendp2i))) THEN
+# ifdef TS_MPDATA_NOT_YET
+                IF (((IstrUm2.le.Isrc).and.(Isrc.le.Iendp3)).and.       &
+     &              ((JstrVm2.le.Jsrc).and.(Jsrc.le.Jendp2i))) THEN
 # else
-                IF (((Istr.le.i).and.(i.le.Iend+1)).and.                &
-     &              ((Jstr.le.j).and.(j.le.Jend))) THEN
+                IF (((Istr.le.Isrc).and.(Isrc.le.Iend+1)).and.          &
+     &              ((Jstr.le.Jsrc).and.(Jsrc.le.Jend))) THEN
 # endif
                   IF (LtracerSrc(itrc,ng)) THEN
-!>                  FX(i,j)=Huon(i,j,k)*                                &
-!>   &                      SOURCES(ng)%Tsrc(is,k,itrc)
+!>                  FX(Isrc,Jsrc)=Huon(Isrc,Jsrc,k)*                    &
+!>   &                            SOURCES(ng)%Tsrc(is,k,itrc)
 !>
-                    tl_FX(i,j)=tl_Huon(i,j,k)*                          &
-     &                         SOURCES(ng)%Tsrc(is,k,itrc)
+                    tl_FX(Isrc,Jsrc)=tl_Huon(Isrc,Jsrc,k)*              &
+     &                               SOURCES(ng)%Tsrc(is,k,itrc)
 # ifdef MASKING
                   ELSE
-                    IF ((rmask(i  ,j).eq.0.0_r8).and.                   &
-     &                  (rmask(i-1,j).eq.1.0_r8)) THEN
-                      FX(i,j)=Huon(i,j,k)*t(i-1,j,k,3,itrc)
-                      tl_FX(i,j)=tl_Huon(i,j,k)*t(i-1,j,k,3,itrc)+      &
-     &                           Huon(i,j,k)*tl_t(i-1,j,k,3,itrc)-      &
+                    IF ((rmask(Isrc  ,Jsrc).eq.0.0_r8).and.             &
+     &                  (rmask(Isrc-1,Jsrc).eq.1.0_r8)) THEN
+                      FX(Isrc,Jsrc)=Huon(Isrc,Jsrc,k)*                  &
+     &                              t(Isrc-1,Jsrc,k,3,itrc)
+                      tl_FX(Isrc,Jsrc)=tl_Huon(Isrc,Jsrc,k)*            &
+     &                                 t(Isrc-1,Jsrc,k,3,itrc)+         &
+     &                                 Huon(Isrc,Jsrc,k)*               &
+     &                                 tl_t(Isrc-1,Jsrc,k,3,itrc)-      &
 #  ifdef TL_IOMS
-     &                           FX(i,j)
+     &                                 FX(Isrc,Jsrc)
 #  endif
-                    ELSE IF ((rmask(i  ,j).eq.1.0_r8).and.              &
-     &                       (rmask(i-1,j).eq.0.0_r8)) THEN
-                      FX(i,j)=Huon(i,j,k)*t(i  ,j,k,3,itrc)
-                      tl_FX(i,j)=tl_Huon(i,j,k)*t(i  ,j,k,3,itrc)+      &
-     &                           Huon(i,j,k)*tl_t(i  ,j,k,3,itrc)-      &
+                    ELSE IF ((rmask(Isrc  ,Jsrc).eq.1.0_r8).and.        &
+     &                       (rmask(Isrc-1,Jsrc).eq.0.0_r8)) THEN
+                      FX(Isrc,Jsrc)=Huon(Isrc,Jsrc,k)*                  &
+     &                              t(Isrc  ,Jsrc,k,3,itrc)
+                      tl_FX(Isrc,Jsrc)=tl_Huon(Isrc,Jsrc,k)*            &
+     &                                 t(Isrc  ,Jsrc,k,3,itrc)+         &
+     &                                 Huon(Isrc,Jsrc,k)*               &
+     &                                 tl_t(Isrc  ,Jsrc,k,3,itrc)-      &
 #  ifdef TL_IOMS
-     &                           FX(i,j)
+     &                                 FX(Isrc,Jsrc)
 #  endif
                     END IF
 # endif
                   END IF
                 END IF
               ELSE IF (INT(SOURCES(ng)%Dsrc(is)).eq.1) THEN
-# ifdef TS_MPDATA
-                IF (((IstrUm2.le.i).and.(i.le.Iendp2i)).and.            &
-     &              ((JstrVm2.le.j).and.(j.le.Jendp3))) THEN
+# ifdef TS_MPDATA_NOT_YET
+                IF (((IstrUm2.le.Isrc).and.(Isrc.le.Iendp2i)).and.      &
+     &              ((JstrVm2.le.Jsrc).and.(Jsrc.le.Jendp3))) THEN
 # else
-                IF (((Istr.le.i).and.(i.le.Iend)).and.                  &
-     &              ((Jstr.le.j).and.(j.le.Jend+1))) THEN
+                IF (((Istr.le.Isrc).and.(Isrc.le.Iend)).and.            &
+     &              ((Jstr.le.Jsrc).and.(Jsrc.le.Jend+1))) THEN
 # endif
                   IF (LtracerSrc(itrc,ng)) THEN
-!>                  FE(i,j)=Hvom(i,j,k)*                                &
-!>   &                      SOURCES(ng)%Tsrc(is,k,itrc)
+!>                  FE(Isrc,Jsrc)=Hvom(Isrc,Jsrc,k)*                    &
+!>   &                            SOURCES(ng)%Tsrc(is,k,itrc)
 !>
-                    tl_FE(i,j)=tl_Hvom(i,j,k)*                          &
-     &                         SOURCES(ng)%Tsrc(is,k,itrc)
+                    tl_FE(Isrc,Jsrc)=tl_Hvom(Isrc,Jsrc,k)*              &
+     &                               SOURCES(ng)%Tsrc(is,k,itrc)
 # ifdef MASKING
                   ELSE
-                    IF ((rmask(i,j  ).eq.0.0_r8).and.                   &
-     &                  (rmask(i,j-1).eq.1.0_r8)) THEN
-                      FE(i,j)=Hvom(i,j,k)*t(i,j-1,k,3,itrc)
-                      tl_FE(i,j)=tl_Hvom(i,j,k)*t(i,j-1,k,3,itrc)+      &
-     &                           Hvom(i,j,k)*tl_t(i,j-1,k,3,itrc)-      &
+                    IF ((rmask(Isrc,Jsrc  ).eq.0.0_r8).and.             &
+     &                  (rmask(Isrc,Jsrc-1).eq.1.0_r8)) THEN
+                      FE(Isrc,Jsrc)=Hvom(Isrc,Jsrc,k)*                  &
+     &                              t(Isrc,Jsrc-1,k,3,itrc)
+                      tl_FE(Isrc,Jsrc)=tl_Hvom(Isrc,Jsrc,k)*            &
+     &                                 t(Isrc,Jsrc-1,k,3,itrc)+         &
+     &                                 Hvom(Isrc,Jsrc,k)*               &
+     &                                 tl_t(Isrc,Jsrc-1,k,3,itrc)-      &
 #  ifdef TL_IOMS
-     &                           FE(i,j)
+     &                                 FE(Isrc,Jsrc)
 #  endif
-                    ELSE IF ((rmask(i,j  ).eq.1.0_r8).and.              &
-     &                       (rmask(i,j-1).eq.0.0_r8)) THEN
-!>                    FE(i,j)=Hvom(i,j,k)*t(i,j  ,k,3,itrc)
+                    ELSE IF ((rmask(Isrc,Jsrc  ).eq.1.0_r8).and.        &
+     &                       (rmask(Isrc,Jsrc-1).eq.0.0_r8)) THEN
+!>                    FE(Isrc,Jsrc)=Hvom(Isrc,Jsrc,k)*                  &
+!>   &                              t(Isrc,Jsrc  ,k,3,itrc)
 !>
-                      tl_FE(i,j)=tl_Hvom(i,j,k)*t(i,j  ,k,3,itrc)+      &
-     &                           Hvom(i,j,k)*tl_t(i,j  ,k,3,itrc)-      &
+                      tl_FE(Isrc,Jsrc)=tl_Hvom(Isrc,Jsrc,k)*            &
+     &                                 t(Isrc,Jsrc  ,k,3,itrc)+         &
+     &                                 Hvom(Isrc,Jsrc,k)*               &
+     &                                 tl_t(Isrc,Jsrc  ,k,3,itrc)-      &
 #  ifdef TL_IOMS
-     &                           FE(i,j)
+     &                                 FE(Isrc,Jsrc)
 #  endif
                     END IF
 # endif
@@ -776,7 +792,7 @@
             END DO
           END IF
 !
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
 !  Time-step horizontal advection for intermediate diffusive tracer, Ta.
 !  Advective fluxes have units of Tunits m3/s.  The new tracer has
 !  units of m Tunits.
@@ -785,7 +801,7 @@
 !  of Tunits m3/s.  The new tracer has units of m Tunits.
 # endif
 !
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
 #  define I_RANGE IstrUm2,Iendp2i
 #  define J_RANGE JstrVm2,Jendp2i
 # else
@@ -804,7 +820,7 @@
 !>            cff3=cff1+cff2
 !>
               tl_cff3=tl_cff1+tl_cff2
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
               Ta(i,j,k,itrc)=t(i,j,k,nnew,itrc)-cff3
               tl_Ta(i,j,k,itrc)=tl_t(i,j,k,nnew,itrc)-tl_cff3
 # else
@@ -813,7 +829,7 @@
               tl_t(i,j,k,nnew,itrc)=tl_t(i,j,k,nnew,itrc)-tl_cff3
 # endif
 # ifdef DIAGNOSTICS_TS
-#  ifdef TS_MPDATA
+#  ifdef TS_MPDATA_NOT_YET
 !!            Dhadv(i,j,iTxadv)=-cff1
 !!            Dhadv(i,j,iTyadv)=-cff2
 !!            Dhadv(i,j,iThadv)=-cff3
@@ -825,7 +841,7 @@
 # endif
             END DO
           END DO
-# if defined DIAGNOSTICS_TS && defined TS_MPDATA
+# if defined DIAGNOSTICS_TS && defined TS_MPDATA_NOT_YET
 !!        DO j=Jstr,Jend
 !!          DO i=Istr,Iend
 !!            DiaTwrk(i,j,k,itrc,iTxadv)=Dhadv(i,j,iTxadv)
@@ -1099,7 +1115,7 @@
             tl_FC(i,N(ng))=0.0_r8
           END DO
 
-# elif defined TS_MPDATA
+# elif defined TS_MPDATA_NOT_YET
 !
 !  First_order, upstream differences vertical advective flux.
 !
@@ -1217,11 +1233,11 @@
           END DO
 # endif
 !
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
 !  Time-step vertical advection for intermediate diffusive tracer, Ta
 !  (Tunits).
 # else
-#  ifdef SPLINES
+#  ifdef SPLINES_VDIFF
 !  Time-step vertical advection term (Tunits).
 !  The BASIC STATE "t" used below must be in transport units, but "t"
 !  retrived is in Tunits so we multiply by "Hz".
@@ -1238,24 +1254,23 @@
 !
           IF (LwSrc(ng)) THEN
             DO is=1,Nsrc(ng)
-              i=SOURCES(ng)%Isrc(is)
-# ifdef TS_MPDATA
-              IF (((IstrUm2.le.i).and.(i.le.Iendp2i)).and.              &
-     &            ((JstrVm2.le.j).and.(j.le.Jendp2i))) THEN
+              Isrc=SOURCES(ng)%Isrc(is)
+              Jsrc=SOURCES(ng)%Jsrc(is)
+              IF (LtracerSrc(itrc,ng).and.                              &
+# ifdef TS_MPDATA_NOT_YET
+     &            ((IstrUm2.le.Isrc).and.(Isrc.le.Iendp2i)).and.        &
 # else
-              IF (((IstrR.le.i).and.(i.le.IendR)).and.                  &
-     &            ((JstrR.le.j).and.(j.le.JendR))) THEN
+     &            ((IstrR.le.Isrc).and.(Isrc.le.IendR)).and.            &
 # endif
-                IF (j.eq.SOURCES(ng)%Jsrc(is)) THEN
-                  DO k=1,N(ng)-1
-                    FC(i,k)=FC(i,k)+0.5_r8*                             &
-     &                      (SOURCES(ng)%Qsrc(is,k  )*                  &
-     &                       SOURCES(ng)%Tsrc(is,k  ,itrc)+             &
-     &                       SOURCES(ng)%Qsrc(is,k+1)*                  &
-     &                       SOURCES(ng)%Tsrc(is,k+1,itrc))
-                    tl_FC(i,k)=tl_FC(i,k)+0.0_r8
-                  END DO
-                END IF
+     &            (j.eq.Jsrc)) THEN
+                DO k=1,N(ng)-1
+                  FC(Isrc,k)=FC(Isrc,k)+0.5_r8*                         &
+     &                       (SOURCES(ng)%Qsrc(is,k  )*                 &
+     &                        SOURCES(ng)%Tsrc(is,k  ,itrc)+            &
+     &                        SOURCES(ng)%Qsrc(is,k+1)*                 &
+     &                        SOURCES(ng)%Tsrc(is,k+1,itrc))
+                  tl_FC(Isrc,k)=tl_FC(Isrc,k)+0.0_r8
+                END DO
               END IF
             END DO
           END IF
@@ -1264,7 +1279,7 @@
             DO i=I_RANGE
               cff1=CF(i,0)*(FC(i,k)-FC(i,k-1))
               tl_cff1=CF(i,0)*(tl_FC(i,k)-tl_FC(i,k-1))
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
               Ta(i,j,k,itrc)=(Ta(i,j,k,itrc)-cff1)*oHz(i,j,k)
               tl_Ta(i,j,k,itrc)=(tl_Ta(i,j,k,itrc)-tl_cff1)*            &
      &                          oHz(i,j,k)+                             &
@@ -1280,7 +1295,7 @@
 !>            t(i,j,k,nnew,itrc)=t(i,j,k,nnew,itrc)-cff1
 !>
               tl_t(i,j,k,nnew,itrc)=tl_t(i,j,k,nnew,itrc)-tl_cff1
-#  ifdef SPLINES
+#  ifdef SPLINES_VDIFF
 !>            t(i,j,k,nnew,itrc)=t(i,j,k,nnew,itrc)*oHz(i,j,k)
 !>
               tl_t(i,j,k,nnew,itrc)=tl_t(i,j,k,nnew,itrc)*              &
@@ -1304,7 +1319,7 @@
         END DO
 # undef I_RANGE
 # undef J_RANGE
-# ifdef TS_MPDATA
+# ifdef TS_MPDATA_NOT_YET
       END DO
 !
 !-----------------------------------------------------------------------
@@ -1493,7 +1508,7 @@
 !  Start pipelined J-loop.
 !
       DO j=Jstr,Jend
-# endif /* TS_MPDATA */
+# endif /* TS_MPDATA_NOT_YET */
 !
 !-----------------------------------------------------------------------
 !  Time-step vertical diffusion term.
@@ -1502,7 +1517,7 @@
         DO itrc=1,NT(ng)
           ltrc=MIN(NAT,itrc)
 
-# if defined SPLINES && !defined TS_MPDATA
+# if defined SPLINES_VDIFF && !defined TS_MPDATA_NOT_YET
 !
 !  Use conservative, parabolic spline reconstruction of BASIC STATE
 !  vertical diffusion derivatives.  Solve BASIC STATE tridiagonal
@@ -1782,6 +1797,48 @@
 # endif
         END DO
       END DO
+
+# if defined AGE_MEAN && defined T_PASSIVE
+!
+!-----------------------------------------------------------------------
+!  If inert passive tracer and Mean Age, compute age concentration (even
+!  inert index) forced by the right-hand-side term that is concentration
+!  of an associated conservative passive tracer (odd inert index). Mean
+!  Age is age concentration divided by conservative passive tracer
+!  concentration. Code implements NPT/2 mean age tracer pairs.
+!
+!  Implemented and tested by W.G. Zhang and J. Wilkin. See following
+!  reference for details.
+!
+!   Zhang et al. (2010): Simulation of water age and residence time in
+!      the New York Bight, JPO, 40,965-982, doi:10.1175/2009JPO4249.1
+!-----------------------------------------------------------------------
+!
+      DO itrc=1,NPT,2
+        iage=inert(itrc+1)                     ! even inert tracer index
+        DO k=1,N(ng)
+          DO j=Jstr,Jend
+            DO i=Istr,Iend
+!>            t(i,j,k,nnew,iage)=t(i,j,k,nnew,iage)+                    &
+!>   &                           dt(ng)*                                &
+#  ifdef TS_MPDATA
+!>   &                           t(i,j,k,nnew,inert(itrc))
+#  else
+!>   &                           t(i,j,k,3,inert(itrc))
+#  endif
+!>
+              tl_t(i,j,k,nnew,iage)=tl_t(i,j,k,nnew,iage)+              &
+     &                              dt(ng)*                             &
+#  ifdef TS_MPDATA
+     &                              tl_t(i,j,k,nnew,inert(itrc))
+#  else
+     &                              tl_t(i,j,k,3,inert(itrc))
+#  endif
+            END DO
+          END DO
+        END DO
+      END DO
+# endif
 !
 !-----------------------------------------------------------------------
 !  Apply lateral boundary conditions and, if appropriate, nudge

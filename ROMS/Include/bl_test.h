@@ -1,7 +1,7 @@
 /*
 ** svn $Id$
 *******************************************************************************
-** Copyright (c) 2002-2014 The ROMS/TOMS Group                               **
+** Copyright (c) 2002-2019 The ROMS/TOMS Group                               **
 **   Licensed under a MIT/X style license                                    **
 **   See License_ROMS.txt                                                    **
 *******************************************************************************
@@ -9,7 +9,7 @@
 ** Boundary Layers Test.
 **
 ** Application flag:   BL_TEST
-** Input scripts:      ocean_bl_test.in
+** Input scripts:      roms_bl_test.in
 **                     stations_bl_test.in
 */
 
@@ -19,12 +19,13 @@
 #define UV_VIS2
 #define MIX_S_UV
 #define DJ_GRADPS
+#define SPLINES_VDIFF
+#define SPLINES_VVISC
 #define TS_U3HADVECTION
 #define TS_C4VADVECTION
 #define SOLAR_SOURCE
 #define NONLIN_EOS
 #define SALINITY
-#define SPLINES
 #define AVERAGES
 #define STATIONS
 #define SOLVE3D
@@ -35,6 +36,7 @@
 #ifdef MY25_MIXING
 # define N2S2_HORAVG
 # define KANTHA_CLAYSON
+# define RI_SPLINES
 #endif
 
 #define LMD_MIXING
@@ -45,6 +47,7 @@
 # define LMD_BKPP
 # define LMD_NONLOCAL
 # define LMD_DDMIX
+# define RI_SPLINES
 #endif
 
 #define BULK_FLUXES
@@ -73,7 +76,7 @@
 
 #define ANA_GRID
 #define ANA_INITIAL
-#define ALBEDO
+#define ALBEDO_DIRDIFF
 #define ANA_SRFLUX
 #define ANA_SSFLUX
 #define ANA_BSFLUX

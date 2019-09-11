@@ -4,7 +4,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -16,6 +16,10 @@
 !                                                                      !
 !     ng         Nested grid number.                                   !
 !     Tindex     State variables time index to write.                  !
+!                                                                      !
+!  Notice that only momentum is affected by the full time-averaged     !
+!  masks.  If applicable, these mask contains information about        !
+!  river runoff and time-dependent wetting and drying variations.      !
 !                                                                      !
 !=======================================================================
 !
@@ -38,6 +42,7 @@
 # ifdef SOLVE3D
       USE nf_fwrite3d_mod, ONLY : nf_fwrite3d
 # endif
+      USE strings_mod,     ONLY : FoundError
 !
       implicit none
 !
@@ -51,19 +56,31 @@
       integer :: Fcount, gfactor, gtype, i, itrc, status, varid
 
       real(r8) :: my_time, scale
+
+      logical :: SetFillVal
 !
       LBi=LBOUND(GRID(ng)%h,DIM=1)
       UBi=UBOUND(GRID(ng)%h,DIM=1)
       LBj=LBOUND(GRID(ng)%h,DIM=2)
       UBj=UBOUND(GRID(ng)%h,DIM=2)
 !
-      SourceFile='wrt_ini.F'
+      SourceFile=__FILE__
+!
+!-----------------------------------------------------------------------
+!  Set SetFillVal to FALSE. This is essential to ensure identical
+!  outer-loop solutions when increments are zero. NOT SURE WHY THIS
+!  IS NECESSARY - PERHAPS SOMETHING WRONG WITH THE LOGIC OF
+!  nf_fwrite routines.
+!-----------------------------------------------------------------------
+!
+      SetFillVal=.FALSE.
 !
 !-----------------------------------------------------------------------
 !  Write out initial conditions.
 !-----------------------------------------------------------------------
 !
-      IF (exit_flag.ne.NoError) RETURN
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Set grid type factor to write full (gfactor=1) fields or water
 !  points (gfactor=-1) fields only.
@@ -90,7 +107,8 @@
      &                      (/INI(ng)%Rindex/), (/1/),                  &
      &                      ncid = INI(ng)%ncid,                        &
      &                      varid = INI(ng)%Vid(idtime))
-      IF (exit_flag.ne.NoError) RETURN
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Write out free-surface (m)
 !
@@ -100,15 +118,17 @@
      &                   INI(ng)%Rindex, gtype,                         &
      &                   LBi, UBi, LBj, UBj, scale,                     &
 # ifdef MASKING
-     &                   GRID(ng) % rmask_io,                           &
+     &                   GRID(ng) % rmask,                              &
 # endif
 # ifdef WET_DRY
      &                   OCEAN(ng) % zeta(:,:,Tindex),                  &
      &                   SetFillVal = .FALSE.)
 # else
-     &                   OCEAN(ng) % zeta(:,:,Tindex))
+     &                   OCEAN(ng) % zeta(:,:,Tindex),                  &
+     &                   SetFillVal)
 # endif
-      IF (status.ne.nf90_noerr) THEN
+      IF (FoundError(status, nf90_noerr, __LINE__,                      &
+     &               __FILE__)) THEN
         IF (Master) THEN
           WRITE (stdout,10) TRIM(Vname(1,idFsur)), INI(ng)%Rindex
         END IF
@@ -125,10 +145,12 @@
      &                   INI(ng)%Rindex, gtype,                         &
      &                   LBi, UBi, LBj, UBj, scale,                     &
 # ifdef MASKING
-     &                   GRID(ng) % umask_io,                           &
+     &                   GRID(ng) % umask_full,                         &
 # endif
-     &                   OCEAN(ng) % ubar(:,:,Tindex))
-      IF (status.ne.nf90_noerr) THEN
+     &                   OCEAN(ng) % ubar(:,:,Tindex),                  &
+     &                   SetFillVal)
+      IF (FoundError(status, nf90_noerr, __LINE__,                      &
+     &               __FILE__)) THEN
         IF (Master) THEN
           WRITE (stdout,10) TRIM(Vname(1,idUbar)), INI(ng)%Rindex
         END IF
@@ -145,10 +167,12 @@
      &                   INI(ng)%Rindex, gtype,                         &
      &                   LBi, UBi, LBj, UBj, scale,                     &
 # ifdef MASKING
-     &                   GRID(ng) % vmask_io,                           &
+     &                   GRID(ng) % vmask_full,                         &
 # endif
-     &                   OCEAN(ng) % vbar(:,:,Tindex))
-      IF (status.ne.nf90_noerr) THEN
+     &                   OCEAN(ng) % vbar(:,:,Tindex),                  &
+     &                   SetFillVal)
+      IF (FoundError(status, nf90_noerr, __LINE__,                      &
+     &               __FILE__)) THEN
         IF (Master) THEN
           WRITE (stdout,10) TRIM(Vname(1,idVbar)), INI(ng)%Rindex
         END IF
@@ -167,10 +191,12 @@
      &                   INI(ng)%Rindex, gtype,                         &
      &                   LBi, UBi, LBj, UBj, 1, N(ng), scale,           &
 #  ifdef MASKING
-     &                   GRID(ng) % umask_io,                           &
+     &                   GRID(ng) % umask_full,                         &
 #  endif
-     &                   OCEAN(ng) % u(:,:,:,Tindex))
-      IF (status.ne.nf90_noerr) THEN
+     &                   OCEAN(ng) % u(:,:,:,Tindex),                   &
+     &                   SetFillVal)
+      IF (FoundError(status, nf90_noerr, __LINE__,                      &
+     &               __FILE__)) THEN
         IF (Master) THEN
           WRITE (stdout,10) TRIM(Vname(1,idUvel)), INI(ng)%Rindex
         END IF
@@ -187,10 +213,12 @@
      &                   INI(ng)%Rindex, gtype,                         &
      &                   LBi, UBi, LBj, UBj, 1, N(ng), scale,           &
 #  ifdef MASKING
-     &                   GRID(ng) % vmask_io,                           &
+     &                   GRID(ng) % vmask_full,                         &
 #  endif
-     &                   OCEAN(ng) % v(:,:,:,Tindex))
-      IF (status.ne.nf90_noerr) THEN
+     &                   OCEAN(ng) % v(:,:,:,Tindex),                   &
+     &                   SetFillVal)
+      IF (FoundError(status, nf90_noerr, __LINE__,                      &
+     &               __FILE__)) THEN
         IF (Master) THEN
           WRITE (stdout,10) TRIM(Vname(1,idVvel)), INI(ng)%Rindex
         END IF
@@ -208,10 +236,12 @@
      &                     INI(ng)%Rindex, gtype,                       &
      &                     LBi, UBi, LBj, UBj, 1, N(ng), scale,         &
 #  ifdef MASKING
-     &                     GRID(ng) % rmask_io,                         &
+     &                     GRID(ng) % rmask,                            &
 #  endif
-     &                     OCEAN(ng) % t(:,:,:,Tindex,itrc))
-        IF (status.ne.nf90_noerr) THEN
+     &                     OCEAN(ng) % t(:,:,:,Tindex,itrc),            &
+     &                     SetFillVal)
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idTvar(itrc))), INI(ng)%Rindex
           END IF
@@ -221,8 +251,8 @@
         END IF
       END DO
 
-#  if defined BVF_MIXING  || defined GLS_MIXING || \
-      defined MY25_MIXING || defined LMD_MIXING
+#  if defined BVF_MIXING  || defined TKE_MIXING || \
+      defined LMD_MIXING
 !
 !  If defined, write out vertical viscosity coefficient.
 !
@@ -233,11 +263,12 @@
      &                     INI(ng)%Rindex, gtype,                       &
      &                     LBi, UBi, LBj, UBj, 0, N(ng), scale,         &
 #   ifdef MASKING
-     &                     GRID(ng) % rmask_io,                         &
+     &                     GRID(ng) % rmask,                            &
 #   endif
      &                     MIXING(ng) % Akv,                            &
      &                     SetFillVal = .FALSE.)
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idVvis)), INI(ng)%Rindex
           END IF
@@ -257,11 +288,12 @@
      &                     INI(ng)%Rindex, gtype,                       &
      &                     LBi, UBi, LBj, UBj, 0, N(ng), scale,         &
 #   ifdef MASKING
-     &                     GRID(ng) % rmask_io,                         &
+     &                     GRID(ng) % rmask,                            &
 #   endif
      &                     MIXING(ng) % Akt(:,:,:,itemp),               &
      &                     SetFillVal = .FALSE.)
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idTdif)), INI(ng)%Rindex
           END IF
@@ -282,11 +314,12 @@
      &                     INI(ng)%Rindex, gtype,                       &
      &                     LBi, UBi, LBj, UBj, 0, N(ng), scale,         &
 #    ifdef MASKING
-     &                     GRID(ng) % rmask_io,                         &
+     &                     GRID(ng) % rmask,                            &
 #    endif
      &                     MIXING(ng) % Akt(:,:,:,isalt),               &
      &                     SetFillVal = .FALSE.)
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSdif)), INI(ng)%Rindex
           END IF
@@ -305,7 +338,8 @@
 !-----------------------------------------------------------------------
 !
       CALL netcdf_sync (ng, iNLM, INI(ng)%name, INI(ng)%ncid)
-      IF (exit_flag.ne.NoError) RETURN
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (Master) THEN
 # ifdef SOLVE3D
@@ -381,7 +415,8 @@
       USE nf_fwrite3d_bry_mod, ONLY : nf_fwrite3d_bry
 #  endif
 # endif
-      USE nf_fwrite3d_mod, ONLY : nf_fwrite3d
+      USE nf_fwrite3d_mod,     ONLY : nf_fwrite3d
+      USE strings_mod,         ONLY : FoundError
 !
       implicit none
 !
@@ -413,13 +448,14 @@
       UBij=BOUNDS(ng)%UBij
 #  endif
 !
-      SourceFile='wrt_ini.F, wrt_frc'
+      SourceFile=__FILE__ // ", wrt_frc"
 !
 !-----------------------------------------------------------------------
 !  Write out initial conditions.
 !-----------------------------------------------------------------------
 !
-      IF (exit_flag.ne.NoError) RETURN
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Set grid type factor to write full (gfactor=1) fields or water
 !  points (gfactor=-1) fields only.
@@ -447,7 +483,8 @@
      &                          LBij, UBij, Nbrec(ng), scale,           &
      &                          BOUNDARY(ng) % zeta_obc(LBij:,:,:,      &
      &                                                  Tindex))
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSbry(isFsur))), OutRec
           END IF
@@ -468,7 +505,8 @@
      &                          LBij, UBij, Nbrec(ng), scale,           &
      &                          BOUNDARY(ng) % ubar_obc(LBij:,:,:,      &
      &                                                  Tindex))
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSbry(isUbar))), OutRec
           END IF
@@ -489,7 +527,8 @@
      &                          LBij, UBij, Nbrec(ng), scale,           &
      &                          BOUNDARY(ng) % vbar_obc(LBij:,:,:,      &
      &                                                  Tindex))
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSbry(isVbar))), OutRec
           END IF
@@ -512,7 +551,8 @@
      &                          LBij, UBij, 1, N(ng), Nbrec(ng), scale, &
      &                          BOUNDARY(ng) % u_obc(LBij:,:,:,:,       &
      &                                               Tindex))
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSbry(isUvel))), OutRec
           END IF
@@ -533,7 +573,8 @@
      &                          LBij, UBij, 1, N(ng), Nbrec(ng), scale, &
      &                          BOUNDARY(ng) % v_obc(LBij:,:,:,:,       &
      &                                               Tindex))
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSbry(isVvel))), OutRec
           END IF
@@ -556,7 +597,8 @@
      &                            scale,                                &
      &                            BOUNDARY(ng) % t_obc(LBij:,:,:,:,     &
      &                                                 Tindex,itrc))
-          IF (status.ne.nf90_noerr) THEN
+          IF (FoundError(status, nf90_noerr, __LINE__,                  &
+     &                   __FILE__)) THEN
             IF (Master) THEN
               WRITE (stdout,10) TRIM(Vname(1,idSbry(isTvar(itrc)))),    &
      &                          OutRec
@@ -582,10 +624,11 @@
      &                   OutRec, gtype,                                 &
      &                   LBi, UBi, LBj, UBj, 1, Nfrec(ng), scale,       &
 #   ifdef MASKING
-     &                   GRID(ng) % umask_io,                           &
+     &                   GRID(ng) % umask,                              &
 #   endif
      &                   FORCES(ng) % ustr(:,:,:,Tindex))
-      IF (status.ne.nf90_noerr) THEN
+      IF (FoundError(status, nf90_noerr, __LINE__,                      &
+     &               __FILE__)) THEN
         IF (Master) THEN
           WRITE (stdout,10) TRIM(Vname(1,idUsms)), OutRec
         END IF
@@ -602,10 +645,11 @@
      &                   OutRec, gtype,                                 &
      &                   LBi, UBi, LBj, UBj, 1, Nfrec(ng), scale,       &
 #   ifdef MASKING
-     &                   GRID(ng) % vmask_io,                           &
+     &                   GRID(ng) % vmask,                              &
 #   endif
      &                   FORCES(ng) % vstr(:,:,:,Tindex))
-      IF (status.ne.nf90_noerr) THEN
+      IF (FoundError(status, nf90_noerr, __LINE__,                      &
+     &               __FILE__)) THEN
         IF (Master) THEN
           WRITE (stdout,10) TRIM(Vname(1,idVsms)), OutRec
         END IF
@@ -634,10 +678,11 @@
      &                       OutRec, gtype,                             &
      &                       LBi, UBi, LBj, UBj, 1, Nfrec(ng), scale,   &
 #   ifdef MASKING
-     &                       GRID(ng) % rmask_io,                       &
+     &                       GRID(ng) % rmask,                          &
 #   endif
      &                       FORCES(ng) % tflux(:,:,:,Tindex,itrc))
-          IF (status.ne.nf90_noerr) THEN
+          IF (FoundError(status, nf90_noerr, __LINE__,                  &
+     &                   __FILE__)) THEN
             IF (Master) THEN
               WRITE (stdout,10) TRIM(Vname(1,idTsur(itrc))),            &
      &                          OutRec
@@ -656,7 +701,8 @@
 !-----------------------------------------------------------------------
 !
       CALL netcdf_sync (ng, iNLM, INI(ng)%name, INI(ng)%ncid)
-      IF (exit_flag.ne.NoError) RETURN
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (Master) THEN
 #  ifdef NESTING
@@ -714,7 +760,8 @@
       USE nf_fwrite3d_bry_mod, ONLY : nf_fwrite3d_bry
 #  endif
 # endif
-      USE nf_fwrite3d_mod, ONLY : nf_fwrite3d
+      USE nf_fwrite3d_mod,     ONLY : nf_fwrite3d
+      USE strings_mod,         ONLY : FoundError
 !
       implicit none
 !
@@ -746,13 +793,14 @@
       IorJ=IOBOUNDS(ng)%IorJ
 #  endif
 !
-      SourceFile='wrt_ini.F, wrt_frc_AD'
+      SourceFile=__FILE__ // ", wrt_frc_AD"
 !
 !-----------------------------------------------------------------------
 !  Write out initial conditions.
 !-----------------------------------------------------------------------
 !
-      IF (exit_flag.ne.NoError) RETURN
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 !
 !  Set grid type factor to write full (gfactor=1) fields or water
 !  points (gfactor=-1) fields only.
@@ -780,7 +828,8 @@
      &                          LBij, UBij, Nbrec(ng), scale,           &
      &                          BOUNDARY(ng) % ad_zeta_obc(LBij:,:,:,   &
      &                                                     Tindex))
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSbry(isFsur))), OutRec
           END IF
@@ -801,7 +850,8 @@
      &                          LBij, UBij, Nbrec(ng), scale,           &
      &                          BOUNDARY(ng) % ad_ubar_obc(LBij:,:,:,   &
      &                                                     Tindex))
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSbry(isUbar))), OutRec
           END IF
@@ -822,7 +872,8 @@
      &                          LBij, UBij, Nbrec(ng), scale,           &
      &                          BOUNDARY(ng) % ad_vbar_obc(LBij:,:,:,   &
      &                                                     Tindex))
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSbry(isVbar))), OutRec
           END IF
@@ -845,7 +896,8 @@
      &                          LBij, UBij, 1, N(ng), Nbrec(ng), scale, &
      &                          BOUNDARY(ng) % ad_u_obc(LBij:,:,:,:,    &
      &                                                  Tindex))
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSbry(isUvel))), OutRec
           END IF
@@ -866,7 +918,8 @@
      &                          LBij, UBij, 1, N(ng), Nbrec(ng), scale, &
      &                          BOUNDARY(ng) % ad_v_obc(LBij:,:,:,:,    &
      &                                                  Tindex))
-        IF (status.ne.nf90_noerr) THEN
+        IF (FoundError(status, nf90_noerr, __LINE__,                    &
+     &                 __FILE__)) THEN
           IF (Master) THEN
             WRITE (stdout,10) TRIM(Vname(1,idSbry(isVvel))), OutRec
           END IF
@@ -889,10 +942,11 @@
      &                            scale,                                &
      &                            BOUNDARY(ng) % ad_t_obc(LBij:,:,:,:,  &
      &                                                    Tindex,itrc))
-          IF (status.ne.nf90_noerr) THEN
+          IF (FoundError(status, nf90_noerr, __LINE__,                  &
+     &                   __FILE__)) THEN
             IF (Master) THEN
               WRITE (stdout,10) TRIM(Vname(1,idSbry(isTvar(itrc)))),    &
-     &                          HSS(ng)%Rindex
+     &                          INI(ng)%Rindex
             END IF
             exit_flag=3
             ioerror=status
@@ -915,10 +969,11 @@
      &                   OutRec, gtype,                                 &
      &                   LBi, UBi, LBj, UBj, 1, Nfrec(ng), scale,       &
 #   ifdef MASKING
-     &                   GRID(ng) % umask_io,                           &
+     &                   GRID(ng) % umask,                              &
 #   endif
      &                   FORCES(ng) % ad_ustr(:,:,:,Tindex))
-      IF (status.ne.nf90_noerr) THEN
+      IF (FoundError(status, nf90_noerr, __LINE__,                      &
+     &               __FILE__)) THEN
         IF (Master) THEN
           WRITE (stdout,10) TRIM(Vname(1,idUsms)), OutRec
         END IF
@@ -935,10 +990,11 @@
      &                   OutRec, gtype,                                 &
      &                   LBi, UBi, LBj, UBj, 1, Nfrec(ng), scale,       &
 #   ifdef MASKING
-     &                   GRID(ng) % vmask_io,                           &
+     &                   GRID(ng) % vmask,                              &
 #   endif
      &                   FORCES(ng) % ad_vstr(:,:,:,Tindex))
-      IF (status.ne.nf90_noerr) THEN
+      IF (FoundError(status, nf90_noerr, __LINE__,                      &
+     &               __FILE__)) THEN
         IF (Master) THEN
           WRITE (stdout,10) TRIM(Vname(1,idVsms)), OutRec
         END IF
@@ -963,10 +1019,11 @@
      &                       OutRec, gtype,                             &
      &                       LBi, UBi, LBj, UBj, 1, Nfrec(ng), scale,   &
 #   ifdef MASKING
-     &                       GRID(ng) % rmask_io,                       &
+     &                       GRID(ng) % rmask,                          &
 #   endif
      &                       FORCES(ng) % ad_tflux(:,:,:,Tindex,itrc))
-          IF (status.ne.nf90_noerr) THEN
+          IF (FoundError(status, nf90_noerr, __LINE__,                  &
+     &                   __FILE__)) THEN
             IF (Master) THEN
               WRITE (stdout,10) TRIM(Vname(1,idTsur(itrc))),            &
      &                          OutRec
@@ -985,7 +1042,8 @@
 !-----------------------------------------------------------------------
 !
       CALL netcdf_sync (ng, iNLM, INI(ng)%name, INI(ng)%ncid)
-      IF (exit_flag.ne.NoError) RETURN
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) RETURN
 
       IF (Master) THEN
 # ifdef NESTING

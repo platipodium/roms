@@ -3,7 +3,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -56,17 +56,17 @@
       USE mod_netcdf
       USE mod_scalars
 
-#if !defined PARALLEL_IO && defined DISTRIBUTE
-!
+#if !defined PARALLEL_IN && defined DISTRIBUTE
       USE distribute_mod, ONLY : mp_bcastf
 #endif
+      USE strings_mod,    ONLY : FoundError
 !
 !  Imported variable declarations.
 !
       integer, intent(in) :: ng, model, ncid, ncvarid, tindex, gtype
       integer, intent(in) :: LBij, UBij, Nrec
 
-      real(r8), intent(in)  :: Ascl
+      real(dp), intent(in)  :: Ascl
       real(r8), intent(out) :: Amin
       real(r8), intent(out) :: Amax
 
@@ -95,7 +95,7 @@
 
       real(r8), dimension(3) :: AttValue
 
-#if !defined PARALLEL_IO && defined DISTRIBUTE
+#if !defined PARALLEL_IN && defined DISTRIBUTE
       real(r8), dimension(3) :: buffer
 #endif
       real(r8), dimension((UBij-LBij+1)*4*Nrec) :: wrk
@@ -195,7 +195,8 @@
       CALL netcdf_get_fatt (ng, model, ncname, ncvarid, AttName,        &
      &                      AttValue, foundit,                          &
      &                      ncid = ncid)
-      IF (exit_flag.ne.NoError) THEN
+      IF (FoundError(exit_flag, NoError, __LINE__,                      &
+     &               __FILE__)) THEN
         status=ioerror
         RETURN
       END IF
@@ -240,7 +241,7 @@
         END IF
       END IF
 
-#if !defined PARALLEL_IO && defined DISTRIBUTE
+#if !defined PARALLEL_IN && defined DISTRIBUTE
       buffer(1)=REAL(status,r8)
       buffer(2)=Amin
       buffer(3)=Amax
@@ -250,13 +251,14 @@
       Amax=buffer(3)
 #endif
 
-      IF (status.ne.nf90_noerr) THEN
+      IF (FoundError(status, nf90_noerr, __LINE__,                      &
+     &               __FILE__)) THEN
         exit_flag=2
         ioerror=status
         RETURN
       END IF
 
-#if !defined PARALLEL_IO && defined DISTRIBUTE
+#if !defined PARALLEL_IN && defined DISTRIBUTE
 !
 !  Broadcast data to all spawned nodes.
 !

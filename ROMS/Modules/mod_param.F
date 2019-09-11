@@ -3,7 +3,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -78,12 +78,22 @@
 !                                                                      !
 !  Diagnostic fields parameters:                                       !
 !                                                                      !
+# if defined ECOSIM && defined BIO_OPTIC
+!  NDbands    Number of spectral irradiance bands.                     !
+# endif
 !  NDbio2d    Number of diagnostic 2D biology fields.                  !
 !  NDbio3d    Number of diagnostic 3D biology fields.                  !
+!  NDbio4d    Number of diagnostic 4D bio-optical fields.              !
 !  NDT        Number of diagnostic tracer fields.                      !
 !  NDM2d      Number of diagnostic 2D momentum fields.                 !
 !  NDM3d      Number of diagnostic 3D momentum fields.                 !
 !  NDrhs      Number of diagnostic 3D right-hand-side fields.          !
+!                                                                      !
+!  Estimated Dynamic and automatic memory parameters:                  !
+!                                                                      !
+!  BmemMax    Maximum automatic memory for distributed-memory buffers  !
+!               (bytes).                                               !
+!  Dmem       Dynamic memory requirements (array elements)             !
 !                                                                      !
 !=======================================================================
 !
@@ -111,8 +121,17 @@
 !  Application grid number as a function of the maximum number of grids
 !  in each nested layer and number of nested layers.
 !
-      integer, allocatable :: GridNumber(:,:)   ! [MAXVAL(GridsInLayer),
-                                                !  NestLayer]
+      integer, allocatable :: GridNumber(:,:)   ! [Ngrids,NestLayers]
+!
+!  Maximum automatic memory (bytes) required in distributed-memory
+!  buffers due to parallel exchanges.
+!
+      real(r8), allocatable :: BmemMax(:)       ! [Ngrids]
+!
+!  Estimated dynamic memory requirement (number of array elements) for
+!  a particular application per nested grid.
+!
+      real(r8), allocatable :: Dmem(:)          ! [Ngrids]
 !
 !-----------------------------------------------------------------------
 !  Define derived type structure, T_IO, used to store information about
@@ -131,8 +150,8 @@
         integer,  pointer :: Nrec(:)             ! NetCDF record size
         integer,  pointer :: Vid(:)              ! NetCDF variables IDs
         integer,  pointer :: Tid(:)              ! NetCDF tracers IDs
-        real(r8), pointer :: time_min(:)         ! starting time
-        real(r8), pointer :: time_max(:)         ! ending time
+        real(dp), pointer :: time_min(:)         ! starting time
+        real(dp), pointer :: time_max(:)         ! ending time
         character (len=50 ) :: label             ! structure label
         character (len=256) :: base              ! base file name
         character (len=256) :: name              ! current name
@@ -372,6 +391,18 @@
       TYPE (T_LBC), allocatable :: ad_LBC(:,:,:)
       TYPE (T_LBC), allocatable :: tl_LBC(:,:,:)
 #endif
+!
+!-----------------------------------------------------------------------
+!  Field statistics STATS structure.
+!-----------------------------------------------------------------------
+!
+      TYPE T_STATS
+        real(r8) :: count         ! processed values count
+        real(r8) :: min           ! minimum value
+        real(r8) :: max           ! maximum value
+        real(r8) :: avg           ! arithmetic mean
+        real(r8) :: rms           ! root mean square
+      END TYPE T_STATS
 
 #ifdef PROPAGATOR
 !
@@ -447,13 +478,13 @@
 !  (like dyes, etc). This parameter is independent of the number of
 !  biological and/or sediment tracers.
 !
-        integer :: NPT = 0
+      integer :: NPT = 0
 
 #ifdef FILTERED_RST
 # ifdef ICE_MODEL
-        integer, parameter :: nfile = 10
+      integer, parameter :: nfile = 10
 # else
-        integer, parameter :: nfile = 9
+      integer, parameter :: nfile = 9
 # endif
 #endif
 !
@@ -531,15 +562,23 @@
       integer :: NDM2d                  ! 2D momentum
       integer :: NDM3d                  ! 3D momentum
 !
-!  Number of diagnostic biology fields.  Currenly, only available for
-!  the Fennel model.
+!  Number of diagnostic biology/bio-optical fields.  Currently, only
+!  available for the Fennel and EcoSim models.
 !
       integer :: NDbio2d                ! 2D fields
       integer :: NDbio3d                ! 3D fields
+      integer :: NDbio4d                ! 4D fields
 !
 !  Number of diagnostic 3D right-hand-side fields.
 !
       integer :: NDrhs
+
+# if defined ECOSIM && defined BIO_OPTIC
+!
+!  Number of light spectral irradiance bands to process.
+!
+      integer :: NDbands
+# endif
 #endif
 
 #if defined FOUR_DVAR || defined IMPULSE
@@ -562,6 +601,14 @@
 !  Number of biconjugate gradient algorithm iteractions.
 !
       integer, allocatable :: Nbico(:)
+#endif
+
+#if defined TIME_CONV && defined WEAK_CONSTRAINT
+!
+!  Number of full state records needed for time convolutions. It is
+!  assign to (ntimes(ng)/nADJ(ng))+1 in "read_phypar.F"
+!
+      integer, allocatable :: NrecTC(:)
 #endif
 !
 !-----------------------------------------------------------------------
@@ -657,62 +704,132 @@
 !  Allocate dimension parameters.
 !-----------------------------------------------------------------------
 !
-      allocate ( Lm(Ngrids) )
-      allocate ( Mm(Ngrids) )
+      IF (.not.allocated(Lm)) THEN
+        allocate ( Lm(Ngrids) )
+      END IF
+      IF (.not.allocated(Mm)) THEN
+        allocate ( Mm(Ngrids) )
+      END IF
 
-      allocate ( Im(Ngrids) )
-      allocate ( Jm(Ngrids) )
+      IF (.not.allocated(Im)) THEN
+        allocate ( Im(Ngrids) )
+      END IF
+      IF (.not.allocated(Jm)) THEN
+        allocate ( Jm(Ngrids) )
+      END IF
 
-      allocate ( N(Ngrids) )
+      IF (.not.allocated(N)) THEN
+        allocate ( N(Ngrids) )
+      END IF
 
 #ifdef BEST_NPZ
 # ifdef BENTHIC
-      allocate ( NBL(Ngrids) )
+      IF (.not. allocated(NBL)) allocate ( NBL(Ngrids) )
 # endif
 #endif
 
-      allocate ( NT(Ngrids) )
+      IF (.not.allocated(NT)) THEN
+        allocate ( NT(Ngrids) )
+      END IF
 
-      allocate ( NTCLM(Ngrids) )
+#if defined TIME_CONV && defined WEAK_CONSTRAINT
+      IF (.not.allocated(NrecTC)) THEN
+        allocate ( NrecTC(Ngrids) )
+      END IF
+#endif
 
-      allocate ( NSV(Ngrids) )
+      IF (.not.allocated(NTCLM)) THEN
+        allocate ( NTCLM(Ngrids) )
+      END IF
 
-      allocate ( NtileI(Ngrids) )
-      allocate ( NtileJ(Ngrids) )
+      IF (.not.allocated(NSV)) THEN
+        allocate ( NSV(Ngrids) )
+      END IF
 
-      allocate ( NtileX(Ngrids) )
-      allocate ( NtileE(Ngrids) )
+      IF (.not.allocated(NtileI)) THEN
+        allocate ( NtileI(Ngrids) )
+      END IF
+      IF (.not.allocated(NtileJ)) THEN
+        allocate ( NtileJ(Ngrids) )
+      END IF
 
-      allocate ( HaloBry(Ngrids) )
+      IF (.not.allocated(NtileX)) THEN
+        allocate ( NtileX(Ngrids) )
+      END IF
+      IF (.not.allocated(NtileE)) THEN
+        allocate ( NtileE(Ngrids) )
+      END IF
 
-      allocate ( HaloSizeI(Ngrids) )
-      allocate ( HaloSizeJ(Ngrids) )
+      IF (.not.allocated(HaloBry)) THEN
+        allocate ( HaloBry(Ngrids) )
+      END IF
 
-      allocate ( TileSide(Ngrids) )
-      allocate ( TileSize(Ngrids) )
+      IF (.not.allocated(HaloSizeI)) THEN
+        allocate ( HaloSizeI(Ngrids) )
+      END IF
+      IF (.not.allocated(HaloSizeJ)) THEN
+        allocate ( HaloSizeJ(Ngrids) )
+      END IF
+
+      IF (.not.allocated(TileSide)) THEN
+        allocate ( TileSide(Ngrids) )
+      END IF
+      IF (.not.allocated(TileSize)) THEN
+        allocate ( TileSize(Ngrids) )
+      END IF
+
+      IF (.not.allocated(BmemMax)) THEN
+        allocate ( BmemMax(Ngrids) )
+        BmemMax=0.0_r8
+      END IF
+
+      IF (.not.allocated(Dmem)) THEN
+        allocate ( Dmem(Ngrids) )
+        Dmem=0.0_r8
+      END IF
 
 #ifdef PROPAGATOR
-      allocate ( Mstate(Ngrids) )
-      allocate ( Nstate(Ngrids) )
-      allocate ( Nstr(Ngrids) )
-      allocate ( Nend(Ngrids) )
-      allocate ( Nsize(Ngrids) )
+      IF (.not.allocated(Mstate)) THEN
+        allocate ( Mstate(Ngrids) )
+      END IF
+      IF (.not.allocated(Nstate)) THEN
+        allocate ( Nstate(Ngrids) )
+      END IF
+      IF (.not.allocated(Nstr)) THEN
+        allocate ( Nstr(Ngrids) )
+      END IF
+      IF (.not.allocated(Nend)) THEN
+        allocate ( Nend(Ngrids) )
+      END IF
+      IF (.not.allocated(Nsize)) THEN
+        allocate ( Nsize(Ngrids) )
+      END IF
 # ifdef SO_SEMI
-      allocate ( Nsemi(Ngrids) )
+      IF (.not.allocated(Nsemi)) THEN
+        allocate ( Nsemi(Ngrids) )
+      END IF
 # endif
 #endif
 
 #ifdef FLOATS
-      allocate ( Nfloats(Ngrids) )
-      allocate ( NFV(Ngrids) )
+      IF (.not.allocated(Nfloats)) THEN
+        allocate ( Nfloats(Ngrids) )
+      END IF
+      IF (.not.allocated(NFV)) THEN
+        allocate ( NFV(Ngrids) )
+      END IF
 #endif
 
 #ifdef STATIONS
-      allocate ( Nstation(Ngrids) )
+      IF (.not.allocated(Nstation)) THEN
+        allocate ( Nstation(Ngrids) )
+      END IF
 #endif
 
 #if defined BALANCE_OPERATOR && defined ZETA_ELLIPTIC
-      allocate ( Nbico(Ngrids) )
+      IF (.not.allocated(Nbico)) THEN
+        allocate ( Nbico(Ngrids) )
+      END IF
 #endif
 
       RETURN
@@ -853,7 +970,9 @@
 !
 !  Allocate lower and upper bounds structure for I/O NetCDF files.
 !
-      allocate ( IOBOUNDS(Ngrids) )
+      IF (.not.allocated(IOBOUNDS)) THEN
+        allocate ( IOBOUNDS(Ngrids) )
+      END IF
 
 #ifdef DIAGNOSTICS
 !
@@ -948,7 +1067,7 @@
 #  endif
 # endif
 #ifdef OFFLINE_FLOATS_LATLON
-! add 4 variables: x-space, y-space, water depth and Hz 
+! add 4 variables: x-space, y-space, water depth and Hz
           NFV(ng)=NFV(ng)+4
 #endif
 #endif
@@ -975,11 +1094,11 @@
 !
 #ifdef SOLVE3D
       nLBCvar=5+MT
-# if defined GLS_MIXING || defined MY25_MIXING
+# if defined TKE_MIXING
       nLBCvar=nLBCvar+1
 # endif
 # ifdef ICE_MODEL
-      nLBCvar=nLBCvar+10
+      nLBCvar=nLBCvar+11
 # endif
 #else
       nLBCvar=3
@@ -1002,6 +1121,7 @@
               LBC(ibry,ivar,ng)%nudging = .FALSE.
               LBC(ibry,ivar,ng)%periodic = .FALSE.
               LBC(ibry,ivar,ng)%radiation = .FALSE.
+              LBC(ibry,ivar,ng)%reduced = .FALSE.
               LBC(ibry,ivar,ng)%Shchepetkin = .FALSE.
             END DO
           END DO

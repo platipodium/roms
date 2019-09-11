@@ -2,7 +2,7 @@
 !
 !svn $Id$
 !************************************************** Hernan G. Arango ***
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !***********************************************************************
@@ -14,57 +14,70 @@
 !  Carbon, Silicon, Nitrogen Ecosystem (CoSiNE) model (Chai et al.,    !
 !  2002). The model state variables are:                               !
 !                                                                      !
-!    iNO3_              ! Nitrate concentration
-!    iNH4_              ! Ammonium concentration
-!    iSiOH              ! Silicate concentration
-!    iPO4_              ! Phosphate concentration
-!    iS1_N              ! Small phytoplankton N
-!    iS1_C              ! Small phytoplankton C
-!    iS1CH              ! Small phytoplankton CHL
-!    iS2_N              ! Diatom concentration N
-!    iS2_C              ! Diatom concentration C
-!    iS2CH              ! Diatom concentration CHL
-!    iS3_N              ! Coccolithophores N
-!    iS3_C              ! Coccolithophores C
-!    iS3CH              ! Coccolithophores CHL
-!    iZ1_N              ! Small zooplankton N
-!    iZ1_C              ! Small zooplankton C
-!    iZ2_N              ! Mesozooplankton N
-!    iZ2_C              ! Mesozooplankton C
-!    iBAC_              ! Bacteria concentration N
-!    iDD_N              ! Detritus concentration N
-!    iDD_C              ! Detritus concentration C
-!    iDDSi              ! Biogenic silicate concentration
-!    iLDON              ! Labile dissolved organic N
-!    iLDOC              ! Labile dissolved organic C
-!    iSDON              ! Semi-labile dissolved organic N
-!    iSDOC              ! Semi-labile dissolved organic C
-!    iCLDC              ! Colored labile dissolved organic C
-!    iCSDC              ! Colored semi-labile dissolved organic C
-!    iDDCA              ! Particulate inorganic C
-!    iOxyg              ! Dissolved oxygen
-!    iTAlk              ! Total alkalinity
-!    iTIC_              ! Total CO2
-!
-!  Reference:                                                          !
+!    iNO3_    (no3)     ! Nitrate concentration                        !
+!    iNH4_    (nh4)     ! Ammonium concentration                       !
+!    iSiOH    (sio4)    ! Silicate concentration                       !
+!    iPO4_    (po4)     ! Phosphate concentration                      !
+!    iS1_N    (s1)      ! Small phytoplankton N                        !
+!    iS1_C    (c1)      ! Small phytoplankton C                        !
+!    iS1CH    (chl1)    ! Small phytoplankton CHL                      !
+!    iS2_N    (s2)      ! Diatom concentration N                       !
+!    iS2_C    (c2)      ! Diatom concentration C                       !
+!    iS2CH    (chl2)    ! Diatom concentration CHL                     !
+!    iS3_N    (s3)      ! Coccolithophores N                           !
+!    iS3_C    (c3)      ! Coccolithophores C                           !
+!    iS3CH    (chl3)    ! Coccolithophores CHL                         !
+!    iZ1_N    (zz1)     ! Small zooplankton N                          !
+!    iZ1_C    (zzc1)    ! Small zooplankton C                          !
+!    iZ2_N    (zz2)     ! Mesozooplankton N                            !
+!    iZ2_C    (zzc2)    ! Mesozooplankton C                            !
+!    iBAC_    (bac)     ! Bacteria concentration N                     !
+!    iDD_N    (ddn)     ! Detritus concentration N                     !
+!    iDD_C    (ddc)     ! Detritus concentration C                     !
+!    iDDSi    (ddsi)    ! Biogenic silicate concentration              !
+!    iLDON    (ldon)    ! Labile dissolved organic N                   !
+!    iLDOC    (ldoc)    ! Labile dissolved organic C                   !
+!    iSDON    (sdon)    ! Semi-labile dissolved organic N              !
+!    iSDOC    (ldoc)    ! Semi-labile dissolved organic C              !
+!    iCLDC    (cldoc)   ! Colored labile dissolved organic C           !
+!    iCSDC    (csdoc)   ! Colored semi-labile dissolved organic C      !
+!    iDDCA    (ddca)    ! Particulate inorganic C                      !
+!    iOxyg    (ox)      ! Dissolved oxygen                             !
+!    iTAlk    (talk)    ! Total alkalinity                             !
+!    iTIC_    (tco2)    ! Total CO2                                    !
+!    iS1_Fe             ! Small phytoplankton Fe                       !
+!    iS2_Fe             ! Diatom concentration Fe                      !
+!    iS3_Fe             ! Coccolithophore concentration Fe             !
+!    iFeD_              ! Available dissolved Fe                       !
+!  Please cite:                                                        !
 !                                                                      !
-!    Chai, F., R.C. Dugdale, T-H Peng, F.P.Wilkerson, and R.T. Barber  !
-!      (2002): One dimensional Ecosystem Model of the Equatorial       !
-!      Pacific Upwelling System, Part I: Model Development and Silicon !
-!      and Nitorgen Cycle. Deep-Sea Res. II, Vol. 49, No. 13-14,       !
-!      2713-2745.                                                      !
-!    Dugdale, R.C., R. T. Barber, F. Chai, T.H. Peng, and              !
-!      F.P. Wilkerson (2002): One Dimensional Ecosystem Model of the   !
-!      Equatorial Pacific Upwelling System, Part II: Sensitivity       !
-!      Analysis and Comparison with JGOFS EqPac Data. Deep-Sea Res.    !
-!      II, Vol. 49, No. 13-14, 2746-2762.                              !
+!    Xiu, P., and F. Chai, 2014, Connections between physical, optical !
+!      and biogeochemical processes in the Pacific Ocean. Progress in  !
+!      Oceanography, 122, 30-53,                                       !
+!                    http://dx.doi.org/10.1016/j.pocean.2013.11.008.   !
 !                                                                      !
-!    Website: http://rocky.umeoce.maine.edu/                           !
-!    Last: Peng Xiu                                                    !
-!    Contact: peng.xiu@maine.edu                                       !
-!***********************************************************************
+!    Xiu, P., and F. Chai, 2012. Spatial and temporal variability in   !
+!      phytoplankton carbon, chlorophyll, and nitrogen in the North    !
+!      Pacific, Journal of Geophysical Research, 117, C11023,          !
+!      doi:10.1029/2012JC008067.                                       !
+!                                                                      !
+!  By: PENG XIU 12/2013                                                !
+!                                                                      !
+!  Options you can use: OXYGEN, CARBON, SINK_OP1, SINK_OP2             !
+!         TALK_NONCONSERV,DIAGNOSTICS_BIO,DIURNAL_LIGHT,OPTIC_UMAINE   !
+!                                                                      !
+!  By: Claudine Hauri 12/2015                                          !
+!  Iron limitation added: IRON_LIMIT                                   !
+!  Please cite:                                                        !
+!    Fiechter, J. et al. Modeling iron limitation of primary           !
+!      production in the coastal Gulf of Alaska. Deep Sea Res.         !
+!      Part II Top. Stud. Oceanogr. 56, 2503–2519 (2009).              !
+!**********************************************************************!
 
       USE mod_param
+#ifdef DIAGNOSTICS_BIO
+      USE mod_diags
+#endif
       USE mod_forces
       USE mod_ncparam
       USE mod_grid
@@ -78,9 +91,19 @@
 !  Local variable declarations.
 !
 #include "tile.h"
+
+#ifdef DISTRIBUTE
+      IF (Lbiofile(iNLM)) THEN
+#else
+      IF (Lbiofile(iNLM).and.(tile.eq.0)) THEN
+#endif
+        Lbiofile(iNLM)=.FALSE.
+        BIONAME(iNLM)=__FILE__
+      END IF
+
 !
 #ifdef PROFILE
-      CALL wclock_on (ng, iNLM, 15)
+      CALL wclock_on (ng, iNLM, 15, __LINE__, __FILE__)
 #endif
       CALL biology_tile (ng, tile,                                      &
      &                   LBi, UBi, LBj, UBj, N(ng), NT(ng),             &
@@ -89,10 +112,20 @@
 #ifdef MASKING
      &                   GRID(ng) % rmask,                              &
 #endif
+#ifdef IRON_LIMIT
+     &                   GRID(ng) % h,                                  &
+#endif
+#if defined WET_DRY && defined DIAGNOSTICS_BIO
+     &                   GRID(ng) % rmask_io,                           &
+#endif
      &                   GRID(ng) % Hz,                                 &
      &                   GRID(ng) % z_r,                                &
      &                   GRID(ng) % z_w,                                &
+     &                   GRID(ng) % latr,                               &
      &                   FORCES(ng) % srflx,                            &
+#ifdef OPTIC_MANIZZA
+     &                   OCEAN(ng) % decayW,                            &
+#endif
 #if defined OXYGEN || defined CARBON
 # ifdef BULK_FLUXES
      &                   FORCES(ng) % Uwind,                            &
@@ -102,13 +135,20 @@
      &                   FORCES(ng) % svstr,                            &
 # endif
 #endif
+#ifdef CARBON
+     &                   OCEAN(ng) % pH,                                &
+#endif
+#ifdef DIAGNOSTICS_BIO
+     &                   DIAGS(ng) % DiaBio2d,                          &
+     &                   DIAGS(ng) % DiaBio3d,                          &
+#endif
 #ifdef PRIMARY_PROD
      &                   OCEAN(ng) % Bio_NPP,                           &
 #endif
      &                   OCEAN(ng) % t)
 
 #ifdef PROFILE
-      CALL wclock_off (ng, iNLM, 15)
+      CALL wclock_off (ng, iNLM, 15, __LINE__, __FILE__)
 #endif
       RETURN
       END SUBROUTINE biology
@@ -121,13 +161,28 @@
 #ifdef MASKING
      &                         rmask,                                   &
 #endif
-     &                         Hz, z_r, z_w, srflx,                     &
+#ifdef IRON_LIMIT
+     &                         h,                                       &
+#endif
+#if defined WET_DRY && defined DIAGNOSTICS_BIO
+     &                         rmask_io,                                &
+#endif
+     &                         Hz, z_r, z_w, latr,srflx,                &
+#ifdef OPTIC_MANIZZA
+     &                         decayW,                                  &
+#endif
 #if defined OXYGEN || defined CARBON
 # ifdef BULK_FLUXES
      &                         Uwind, Vwind,                            &
 # else
      &                         sustr, svstr,                            &
 # endif
+#endif
+#ifdef CARBON
+     &                         pH,                                      &
+#endif
+#ifdef DIAGNOSTICS_BIO
+     &                         DiaBio2d, DiaBio3d,                      &
 #endif
 #ifdef PRIMARY_PROD
      &                         Bio_NPP,                                 &
@@ -151,10 +206,20 @@
 # ifdef MASKING
       real(r8), intent(in) :: rmask(LBi:,LBj:)
 # endif
+#ifdef IRON_LIMIT
+      real(r8), intent(in) :: h(LBi:,LBj:)
+# endif
+# if defined WET_DRY && defined DIAGNOSTICS_BIO
+      real(r8), intent(in) :: rmask_io(LBi:,LBj:)
+# endif
       real(r8), intent(in) :: Hz(LBi:,LBj:,:)
       real(r8), intent(in) :: z_r(LBi:,LBj:,:)
       real(r8), intent(in) :: z_w(LBi:,LBj:,0:)
       real(r8), intent(in) :: srflx(LBi:,LBj:)
+# ifdef OPTIC_MANIZZA
+      real(r8), intent(in) :: decayW(LBi:,LBj:,0:,:)
+#endif
+      real(r8), intent(in) :: latr(LBi:,LBj:)
 # if defined OXYGEN || defined CARBON
 #  ifdef BULK_FLUXES
       real(r8), intent(in) :: Uwind(LBi:,LBj:)
@@ -164,6 +229,13 @@
       real(r8), intent(in) :: svstr(LBi:,LBj:)
 #  endif
 # endif
+# ifdef CARBON
+      real(r8), intent(inout) :: pH(LBi:,LBj:)
+# endif
+# ifdef DIAGNOSTICS_BIO
+      real(r8), intent(inout) :: DiaBio2d(LBi:,LBj:,:)
+      real(r8), intent(inout) :: DiaBio3d(LBi:,LBj:,:,:)
+# endif
 # ifdef PRIMARY_PROD
       real(r8), intent(out) :: Bio_NPP(LBi:,LBj:)
 # endif
@@ -172,10 +244,20 @@
 # ifdef MASKING
       real(r8), intent(in) :: rmask(LBi:UBi,LBj:UBj)
 # endif
+# ifdef IRON_LIMIT
+      real(r8), intent(in) :: h(LBi:UBi,LBj:UBj)
+# endif
+# if defined WET_DRY && defined DIAGNOSTICS_BIO
+      real(r8), intent(in) :: rmask_io(LBi:UBi,LBj:UBj)
+# endif
       real(r8), intent(in) :: Hz(LBi:UBi,LBj:UBj,UBk)
       real(r8), intent(in) :: z_r(LBi:UBi,LBj:UBj,UBk)
       real(r8), intent(in) :: z_w(LBi:UBi,LBj:UBj,0:UBk)
       real(r8), intent(in) :: srflx(LBi:UBi,LBj:UBj)
+# ifdef OPTIC_MANIZZA
+      real(r8), intent(in) :: decayW(LBi:UBi,LBj:UBj,0:UBk,4)
+#endif
+      real(r8), intent(in) :: latr(LBi:UBi,LBj:UBj)
 # if defined OXYGEN || defined CARBON
 #  ifdef BULK_FLUXES
       real(r8), intent(in) :: Uwind(LBi:UBi,LBj:UBj)
@@ -185,30 +267,43 @@
       real(r8), intent(in) :: svstr(LBi:UBi,LBj:UBj)
 #  endif
 # endif
+# ifdef CARBON
+      real(r8), intent(inout) :: pH(LBi:UBi,LBj:UBj)
+# endif
+# ifdef DIAGNOSTICS_BIO
+      real(r8), intent(inout) :: DiaBio2d(LBi:UBi,LBj:UBj,NDbio2d)
+      real(r8), intent(inout) :: DiaBio3d(LBi:UBi,LBj:UBj,UBk,NDbio3d)
+# endif
 #ifdef PRIMARY_PROD
-      real(r8), dimension(IminS:ImaxS,N(ng)) :: NPP_slice
+      real(r8), intent(out) :: Bio_NPP(LBi:UBi,LBj:UBj)
 #endif
       real(r8), intent(inout) :: t(LBi:UBi,LBj:UBj,UBk,3,UBt)
 #endif
 !
 !  Local variable declarations.
 !
+#if defined IRON_LIMIT
+      integer, parameter :: Nsink = 16
+#else
       integer, parameter :: Nsink = 13
+#endif
+
 #if defined OXYGEN || defined CARBON
       real(r8) :: u10squ, u10spd
 #endif
 
-      integer :: Iter, i, indx, isink, ibio, j, k, ks
+      integer :: Iter, i, indx, isink, ibio, j, k, ks, ivar
 
       integer, dimension(Nsink) :: idsink
 
       integer, parameter :: mmax = 31
 
-      real(r8), parameter :: Minval = 0.000001_r8
+      real(r8), parameter :: Minval = 0.000000001_r8
 
       real(r8) :: dtdays
 
-      real(r8) :: cff, cff1, cff2, cff3, cff4, cff5,cff6
+      real(r8) :: cff, cff1, cff2, cff3, cff4, cff5, cff6
+      real(r8) :: dent3, unit4
 
       real(r8), dimension(Nsink) :: Wbio
 
@@ -225,6 +320,7 @@
 
 #ifdef CARBON
       real(r8), dimension(IminS:ImaxS) :: co2flx
+      real(r8), dimension(IminS:ImaxS) :: pco2s
 #endif
 
       real(r8), dimension(IminS:ImaxS,N(ng),NT(ng)) :: Bio
@@ -240,14 +336,14 @@
 
       real(r8), dimension(N(ng)) :: sinkindx
 
-       real(r8) :: cffL, cffR, cu, dltL, dltR
-       integer, dimension(IminS:ImaxS,N(ng)) :: ksource
-       real(r8), dimension(IminS:ImaxS,0:N(ng)) :: FC
-       real(r8), dimension(IminS:ImaxS,N(ng)) :: WL
-       real(r8), dimension(IminS:ImaxS,N(ng)) :: WR
-       real(r8), dimension(IminS:ImaxS,N(ng)) :: bL
-       real(r8), dimension(IminS:ImaxS,N(ng)) :: bR
-       real(r8), dimension(IminS:ImaxS,N(ng)) :: qc
+      real(r8) :: cffL, cffR, cu, dltL, dltR
+      integer, dimension(IminS:ImaxS,N(ng)) :: ksource
+      real(r8), dimension(IminS:ImaxS,0:N(ng)) :: FC
+      real(r8), dimension(IminS:ImaxS,N(ng)) :: WL
+      real(r8), dimension(IminS:ImaxS,N(ng)) :: WR
+      real(r8), dimension(IminS:ImaxS,N(ng)) :: bL
+      real(r8), dimension(IminS:ImaxS,N(ng)) :: bR
+      real(r8), dimension(IminS:ImaxS,N(ng)) :: qc
 
       real(r8) :: thick
       real(r8) :: OXR, Q10, Tfunc, cff0
@@ -257,6 +353,8 @@
       real(r8), parameter :: acldoc410s=5.08_r8*12.0_r8/1000.0_r8
       real(r8), parameter :: acsdoc410s=5.08_r8*12.0_r8/1000.0_r8
       real(r8), parameter :: ini_v=1.015_r8
+      real(r8), parameter :: thetaCmin=0.036_r8
+      real(r8), parameter :: thetaCmax=1.20_r8
       real(r8), dimension(IminS:ImaxS,N(ng)) :: acldoc410
       real(r8), dimension(IminS:ImaxS,N(ng)) :: acsdoc410
       real(r8), dimension(IminS:ImaxS,N(ng)) :: kd300
@@ -294,7 +392,7 @@
       real(r8) :: morts3,mortc3,mortchl3
       real(r8) :: mortbac,si2n
       real(r8) :: excrz1,excrzc1,excrz2,excrzc2
-      real(r8) :: nitrif,cent1,MIDDN,MIDDC,MIDDSI
+      real(r8) :: nitrif,cent1,MIDDN,MIDDC,MIDDSI,cent2
       real(r8) :: MIPON,MIPOC,MIDDCA
       real(r8) :: remvz2,remvzc2
       real(r8) :: UVLDOC,UVSDOC,UVLDIC,UVSDIC
@@ -324,11 +422,54 @@
       real(r8) :: sms21,sms22,sms23,sms24,sms25
       real(r8) :: sms26,sms27,sms28,sms29,sms30
       real(r8) :: sms31,sms32,sms33,sms34,sms35
+      real(r8) :: FlimitS1,FlimitS2,FlimitS3
+#ifdef IRON_LIMIT
+      real(r8), parameter :: k_FeC = 0.0169 ! micromole-Fe/mole-C
+      real(r8) :: UFeS1
+      real(r8) :: FNratioS1,FNratioS2,FNratioS3
+      real(r8) :: FCratioS1,FCratioS2,FCratioS3,FCratioE
+      real(r8) :: cffFeS1_G,cffFeS2_G,cffFeS3_G
+      real(r8) :: cffFeS1_R,cffFeS2_R,cffFeS3_R
+      real(r8) :: cffFeExuS1,cffFeExuS2,cffFeExuS3
+      real(r8) :: gs1Fezz1,gs2Fezz2,gs3Fezz2
+      real(r8) :: morts1Fe,morts2Fe,morts3Fe
+      real(r8) :: Qsms36,Qsms37,Qsms38,Qsms39
+      real(r8) :: NQsms36,NQsms37,NQsms38,NQsms39
+      real(r8) :: sms36,sms37,sms38,sms39
+      real(r8) :: Fndgcf, Fe_clm
+      real(r8) :: h_min, h_max, Fe_min, Fe_max, Fe_rel, SiN_min, SiN_max
+#endif
 
 #include "set_bounds.h"
 !
-#ifdef DISTRIBUTE
-!  DISTRIBUTE is TRUE and model is needed
+
+#ifdef DIAGNOSTICS_BIO
+!
+!-----------------------------------------------------------------------
+! If appropriate, initialize time-averaged diagnostic arrays.
+!-----------------------------------------------------------------------
+!
+      IF (((iic(ng).gt.ntsDIA(ng)).and.                                &
+     &     (MOD(iic(ng),nDIA(ng)).eq.1)).or.                           &
+     &    ((iic(ng).ge.ntsDIA(ng)).and.(nDIA(ng).eq.1)).or.            &
+     &    ((nrrec(ng).gt.0).and.(iic(ng).eq.ntstart(ng)))) THEN
+        DO ivar=1,NDbio2d
+          DO j=Jstr,Jend
+            DO i=Istr,Iend
+              DiaBio2d(i,j,ivar)=0.0_r8
+            END DO
+          END DO
+        END DO
+        DO ivar=1,NDbio3d
+          DO k=1,N(ng)
+            DO j=Jstr,Jend
+              DO i=Istr,Iend
+                DiaBio3d(i,j,k,ivar)=0.0_r8
+              END DO
+            END DO
+          END DO
+        END DO
+      END IF
 #endif
 
 !-----------------------------------------------------------------------
@@ -354,6 +495,12 @@
       idsink(11)=iDD_C
       idsink(12)=iDDSi
       idsink(13)=iDDCA
+
+#ifdef IRON_LIMIT
+      idsink(14)=iS1_Fe
+      idsink(15)=iS2_Fe
+      idsink(16)=iS3_Fe
+#endif
 !
 !  Set vertical sinking velocity vector in the same order as the
 !  identification vector, IDSINK.
@@ -371,13 +518,20 @@
       Wbio(11)=wsdc(ng)               ! iDD_C
       Wbio(12)=wsdsi(ng)              ! iDDSi
       Wbio(13)=wsdca(ng)              ! iDDCA
+
+#ifdef IRON_LIMIT
+      Wbio(14)=wsp1(ng)               ! iS1_Fe
+      Wbio(15)=wsp2(ng)               ! iS2_Fe
+      Wbio(16)=wsp3(ng)               ! iS3_Fe
+#endif
+
 !
 !  Compute inverse thickness to avoid repeated divisions.
 !
       J_LOOP : DO j=Jstr,Jend
 #ifdef PRIMARY_PROD
         DO i=Istr,Iend
-	  Bio_NPP(i,j) = 0.0_r8
+          Bio_NPP(i,j) = 0.0_r8
         END DO
         DO k=1,N(ng)
           DO i=Istr,Iend
@@ -386,18 +540,18 @@
         END DO
 #endif
         DO k=1,N(ng)
-      	  DO i=Istr,Iend
+          DO i=Istr,Iend
             hzl(i,k)=Hz(i,j,k)
             Hz_inv(i,k)=1.0_r8/Hz(i,j,k)
           END DO
         END DO
         DO k=1,N(ng)-1
-      	  DO i=Istr,Iend
+          DO i=Istr,Iend
             Hz_inv2(i,k)=1.0_r8/(Hz(i,j,k)+Hz(i,j,k+1))
           END DO
         END DO
         DO k=2,N(ng)-1
-      	  DO i=Istr,Iend
+          DO i=Istr,Iend
             Hz_inv3(i,k)=1.0_r8/(Hz(i,j,k-1)+Hz(i,j,k)+Hz(i,j,k+1))
           END DO
         END DO
@@ -412,23 +566,15 @@
         DO ibio=1,NBT
           indx=idbio(ibio)
           DO k=1,N(ng)
-      	    DO i=Istr,Iend
-              Bio_bak(i,k,indx)=MAX(t(i,j,k,nstp,indx),0.0001_r8)
-
-!keep minimum phytoplankton ratios
-              Bio_bak(i,k,iS1_C)=MAX(t(i,j,k,nstp,iS1_C),0.00056_r8)
-              Bio_bak(i,k,iS2_C)=MAX(t(i,j,k,nstp,iS2_C),0.00056_r8)
-              Bio_bak(i,k,iS3_C)=MAX(t(i,j,k,nstp,iS3_C),0.00056_r8)
-              Bio_bak(i,k,iS1CH)=MAX(t(i,j,k,nstp,iS1CH),0.000336_r8)
-              Bio_bak(i,k,iS2CH)=MAX(t(i,j,k,nstp,iS2CH),0.000336_r8)
-              Bio_bak(i,k,iS3CH)=MAX(t(i,j,k,nstp,iS3CH),0.000336_r8)
+            DO i=Istr,Iend
+              Bio_bak(i,k,indx)=MAX(t(i,j,k,nstp,indx),Minval)
               Bio(i,k,indx)=Bio_bak(i,k,indx)
             END DO
           END DO
         END DO
 #ifdef CARBON
         DO k=1,N(ng)
-      	  DO i=Istr,Iend
+          DO i=Istr,Iend
             Bio(i,k,iTIC_)=MIN(Bio(i,k,iTIC_),3000.0_r8)
             Bio(i,k,iTIC_)=MAX(Bio(i,k,iTIC_),400.0_r8)
             Bio_bak(i,k,iTIC_)=Bio(i,k,iTIC_)
@@ -437,7 +583,7 @@
 #endif
 #ifdef OXYGEN
         DO k=1,N(ng)
-      	  DO i=Istr,Iend
+          DO i=Istr,Iend
             Bio(i,k,iOxyg)=MIN(Bio(i,k,iOxyg),800.0_r8)
             Bio_bak(i,k,iOxyg)=Bio(i,k,iOxyg)
           END DO
@@ -447,9 +593,30 @@
 !  Extract potential temperature and salinity.
 !
         DO k=1,N(ng)
-      	  DO i=Istr,Iend
+          DO i=Istr,Iend
             Bio(i,k,itemp)=MIN(t(i,j,k,nstp,itemp),35.0_r8)
             Bio(i,k,isalt)=MAX(t(i,j,k,nstp,isalt), 0.0_r8)
+
+! keep phytoplankton ratio
+! careful, this may not be correct
+!            if(Bio(i,k,iS1_N) .eq. 0.0001_r8) then
+!                  Bio(i,k,iS1_C)=0.0001_r8*5.6_r8
+!                    Bio(i,k,iS1CH)=0.0001_r8*5.6_r8*0.6_r8
+!                    Bio_bak(i,k,iS1_C)=Bio(i,k,iS1_C)
+!                    Bio_bak(i,k,iS1CH)=Bio(i,k,iS1CH)
+!             endif
+!             if(Bio(i,k,iS2_N) .eq. 0.0001_r8) then
+!                  Bio(i,k,iS2_C)=0.0001_r8*5.6_r8
+!                    Bio(i,k,iS2CH)=0.0001_r8*5.6_r8*0.6_r8
+!                    Bio_bak(i,k,iS2_C)=Bio(i,k,iS2_C)
+!                    Bio_bak(i,k,iS2CH)=Bio(i,k,iS2CH)
+!             endif
+!             if(Bio(i,k,iS3_N) .eq. 0.0001_r8) then
+!                  Bio(i,k,iS3_C)=0.0001_r8*5.6_r8
+!                    Bio(i,k,iS3CH)=0.0001_r8*5.6_r8*0.6_r8
+!                    Bio_bak(i,k,iS3_C)=Bio(i,k,iS3_C)
+!                    Bio_bak(i,k,iS3CH)=Bio(i,k,iS3CH)
+!             endif
           END DO
         END DO
 
@@ -457,9 +624,45 @@
 !  net shortwave radiation is scaled back to Watts/m2 and multiplied by
 !  the fraction that is photosynthetically available, PARfrac.
 !
-      	DO i=Istr,Iend
+        DO i=Istr,Iend
           PARsur(i)=PARfrac(ng)*srflx(i,j)*rho0*Cp
+#ifdef DIURNAL_LIGHT
+          dent3=mod(tdays(ng),365.25)
+          call daily_par(latr(i,j),dent3,unit4)
+          PARsur(i)=PARsur(i)*unit4
+#endif
         END DO
+
+#if defined IRON_LIMIT && defined IRON_RELAX
+!  Relaxation of dissolved iron to climatology
+!  Set concentration and depth parameters for FeD climatology
+!  Fe concentration in (micromol-Fe/m3, or nM-Fe)
+        h_min = 200.0_r8
+        h_max = 1500.0_r8
+        Fe_max = 2.0_r8
+	Fe_min = 0.05_r8
+!  Set nudging time scales to 5 days
+        Fe_rel = 5.0_r8
+        Fndgcf = 1.0_r8/(Fe_rel*86400.0_r8)
+        DO k=1,N(ng)
+          DO i=Istr,Iend
+!  Relaxation for depths < h_max to simulate Fe input at coast
+            IF (h(i,j).le.h_min) THEN
+	      Fe_clm = Fe_max
+            ELSE IF (h(i,j).ge.h_max) THEN
+	      Fe_clm = Fe_min
+	    ELSE
+	      Fe_clm = Fe_min + (h_max - h(i,j)) * (Fe_max - Fe_min) /  &
+     &                     (h_max - h_min)
+	    ENDIF
+!  Only nudge if we have too little iron
+	    IF (Bio(i,k,iFeD_) < Fe_clm) THEN
+              Bio(i,k,iFeD_)=Bio(i,k,iFeD_)+                              &
+     &                       dt(ng)*Fndgcf*(Fe_clm-Bio(i,k,iFeD_))
+	    ENDIF
+          END DO
+        END DO
+#endif
 !
         ITER_LOOP: DO Iter=1,BioIter(ng)
 
@@ -473,7 +676,7 @@
 
 !call optics to derive in-water light
 
-        do k=1,N(ng)
+        DO k=1,N(ng)
           DO i=Istr,Iend
             acldoc410(i,k)=acldoc410s*Bio(i,k,iCLDC)
             acsdoc410(i,k)=acsdoc410s*Bio(i,k,iCSDC)
@@ -500,7 +703,7 @@
           end do
         end do
 
-#ifdef OPTIC_UMaine
+#ifdef OPTIC_UMAINE
       call optic_property(Istr, Iend, ng,                               &
      &                       LBi, UBi, LBj, UBj, UBk,                   &
      &                       IminS, ImaxS, j,                           &
@@ -523,11 +726,19 @@
         END DO
 #endif
 
+#ifdef OPTIC_MANIZZA
+        DO k=N(ng),1,-1
+          DO i=Istr,Iend
+          ! Visible light only
+            PAR(i,k)=PARsur(i)*(decayW(i,j,k,3) + decayW(i,j,k,4))
+          END DO
+        END DO
+#else
 ! calculate PAR
         DO i=Istr,Iend
           PIO(i,N(ng)+1)=PARsur(i)
+          IF (PIO(i,N(ng)+1).lt.0) PIO(i,N(ng)+1)=0.0_r8
         END DO
-        IF (PIO(i,N(ng)+1).lt.0) PIO(i,N(ng)+1)=0.0_r8
 
         DO k=N(ng),1,-1
           DO i=Istr,Iend
@@ -537,14 +748,15 @@
                     cff1=(AK1(ng)+(Bio(i,k,iS1_N)+Bio(i,k,iS2_N)+       &
      &               Bio(i,k,iS3_N))*AK2(ng))*HZ(i,j,k)
              endif
-             PIO(i,K)=PIO(i,K+1)*EXP(-cff1)
-             PAR(i,K)=(PIO(i,K+1)-PIO(i,K))/cff1
+             PIO(i,k)=PIO(i,k+1)*EXP(-cff1)
+             PAR(i,k)=(PIO(i,k+1)-PIO(i,k))/cff1
 
-            END DO
           END DO
+        END DO
+#endif
 
-          DO k=1,N(ng)
-            DO i=Istr,Iend
+        DO k=1,N(ng)
+          DO i=Istr,Iend
 
 !-----------------------------------------------------------------------
 !     CALCULATING the temperature dependence of biology processes
@@ -570,7 +782,7 @@
 !  availability of dissolved oxygen except the bottom layer.
 !
 #ifdef OXYGEN
-      if(k.lt.N(ng))then
+      if(k .gt. 1)then
         OXR = Bio(i,k,iOxyg)/(Bio(i,k,iOxyg)+AKOX)
       else
         OXR = 1.0_r8
@@ -579,6 +791,11 @@
       OXR = 1.0_r8
 #endif
 !
+!-----------------------------------------------------------------------
+!     CALCULATING THE GROWTH RATE AS NO3,NH4, AND LIGHT;
+!     GRAZING, PARTICLE SINKING AND REGENERATION
+!-----------------------------------------------------------------------
+
 !----------------------------------------------------------------------
 !     for variable N-C-Chl ratio in phytoplankton
 !----------------------------------------------------------------------
@@ -611,48 +828,124 @@
                thetaCS2 = Bio(i,k,iS2CH) / Bio(i,k,iS2_C)
                thetaCS3 = Bio(i,k,iS3CH) / Bio(i,k,iS3_C)
 
+         if (thetaCS1 .ge. thetaCmax) then
+            thetaCS1=thetaCmax-1.0e-6
+         elseif (thetaCS1 .le. thetaCmin) then
+            thetaCS1=thetaCmin+1.0e-6
+         endif
+
+         if (thetaCS2 .ge. thetaCmax) then
+            thetaCS2=thetaCmax-1.0e-6
+         elseif (thetaCS2 .le. thetaCmin) then
+            thetaCS2=thetaCmin+1.0e-6
+         endif
+
+         if (thetaCS3 .ge. thetaCmax) then
+            thetaCS3=thetaCmax-1.0e-6
+         elseif (thetaCS3 .le. thetaCmin) then
+            thetaCS3=thetaCmin+1.0e-6
+         endif
+
+
+
+!-----------------------------------------------------------------------
 !    S1 LIMITED GROWTH
+!-----------------------------------------------------------------------
+
             pnh4s1= exp(-pis1(ng)*Bio(i,k,iNH4_))
             uno3s1 = pnh4s1*Bio(i,k,iNO3_)/(akno3s1(ng)+Bio(i,k,iNO3_))
             unh4s1 = Bio(i,k,iNH4_)/(aknh4s1(ng)+Bio(i,k,iNH4_))
             UPO4S1 = Bio(i,k,iPO4_)/(akpo4s1(ng)+Bio(i,k,iPO4_))
+
+#ifdef IRON_LIMIT
+! Small phytoplankton growth reduction factor due to iron limitation
+! Current Fe:N ratio [umol-Fe/mmol-N]
+              FNratioS1=Bio(i,k,iS1_Fe)/MAX(Minval,Bio(i,k,iS1_N))
+
+! Current F:C ratio [umol-Fe/mmol-C]
+              FCratioS1=Bio(i,k,iS1_Fe)/MAX(Minval,Bio(i,k,iS1_C))
+
+! Empirical FCratio
+              FCratioE= B_Fe(ng)*Bio(i,k,iFeD_)**A_Fe(ng)
+
+! Phytoplankton growth reduction factor through Michaelis Menten kinetics
+! of iron limitation based on local Phyto and dissolved iron realized Fe:C ratio
+              FlimitS1 = FCratioS1**2.0_r8/                                 &
+     &                  (FCratioS1**2.0_r8+k_FeC**2.0_r8)
+!JF              FlimitS1 = FCratioS1/(FCratioS1+S1_FeC(ng))
+
+
+#else
+              FlimitS1 = 1.0_r8
+#endif
+
+
 #ifdef CARBON
             UCO2S1 = Bio(i,k,iTIC_)/(akco2s1(ng)+Bio(i,k,iTIC_))
 #else
             UCO2S1 = 1.0_r8
 #endif
-            GNUTS1 = min(uno3s1,UPO4S1,UCO2S1)
+
+!      Limitation
+            GNUTS1 = min(uno3s1,UPO4S1,UCO2S1,FlimitS1)
             uno3s1=GNUTS1
             UPO4S1=GNUTS1
             UCO2S1=GNUTS1
+            FlimitS1=GNUTS1
 
-!      S1 THE SPECIFIC GROWTH RATE
-          gno3S1   = VncrefS1*Tfunc*uno3S1                           &
+!      S1 SPECIFIC GROWTH RATE
+            gno3S1   = VncrefS1*Tfunc*uno3S1                           &
      &                     * (1.0_r8-fnitS1)/(ini_v-fnitS1)
 
-          gnh4S1   = VncrefS1*Tfunc*unh4S1                           &
+            gnh4S1   = VncrefS1*Tfunc*unh4S1                           &
      &                     * (1.0_r8-fnitS1)/(ini_v-fnitS1)
 
+!-----------------------------------------------------------------------
 !    S2 LIMITED GROWTH
+!-----------------------------------------------------------------------
+
             pnh4s2= exp(-pis2(ng)*Bio(i,k,iNH4_))
             uno3s2 = Bio(i,k,iNO3_)/(akno3s2(ng)+Bio(i,k,iNO3_))
             usio4s2 = Bio(i,k,iSiOH)/(aksio4s2(ng)+Bio(i,k,iSiOH))
+            UPO4S2 = Bio(i,k,iPO4_)/(akpo4s2(ng)+Bio(i,k,iPO4_))
+
+!term needed for silicification
             si2n=max(usio4s2/uno3s2,1.0_r8)
             if (si2n .gt. 4.0_r8 ) then
                 si2n=4.0_r8
             endif
-            UPO4S2 = Bio(i,k,iPO4_)/(akpo4s2(ng)+Bio(i,k,iPO4_))
+
+
 
 #ifdef CARBON
             UCO2S2 = Bio(i,k,iTIC_)/(akco2s2(ng)+Bio(i,k,iTIC_))
 #else
             UCO2S2 = 1.0_r8
 #endif
-            GNUTS2 =min(uno3s2,usio4s2,UPO4S2,UCO2S2)
+
+
+#ifdef IRON_LIMIT
+!Current F:C ratio [umol-Fe/mol-C]
+                FCratioS2=Bio(i,k,iS2_Fe)/MAX(Minval,Bio(i,k,iS2_C))
+
+! Phytoplankton growth reduction factor due to iron limitation
+! based on Fe:C ratio
+              FlimitS2 = FCratioS2**2.0_r8/                                 &
+     &                 (FCratioS2**2.0_r8+k_FeC**2.0_r8)
+!JF              FlimitS2 = FCratioS2/(FCratioS2+S2_FeC(ng))
+
+
+#else
+              FlimitS2 = 1.0_r8
+#endif
+
+!      Limitation
+            GNUTS2 =min(uno3s2,usio4s2,UPO4S2,UCO2S2,FlimitS2)
             uno3s2=GNUTS2*pnh4s2
             unh4s2=GNUTS2*(1.0_r8-pnh4s2)
             UPO4S2=GNUTS2
             UCO2S2=GNUTS2
+            FlimitS2=GNUTS2
 
 !      S2 SPECIFIC GROWTH RATE
             gno3S2   = VncrefS2*Tfunc*uno3S2                           &
@@ -665,110 +958,250 @@
      &                     * (1.0_r8-fnitS2)/(ini_v-fnitS2)
 
 
+!-----------------------------------------------------------------------
 !    S3 LIMITED GROWTH
+!-----------------------------------------------------------------------
+
             pnh4s3= exp(-pis3(ng)*Bio(i,k,iNH4_))
             uno3s3 = pnh4s3*Bio(i,k,iNO3_)/(akno3s3(ng)+Bio(i,k,iNO3_))
             unh4s3 = Bio(i,k,iNH4_)/(aknh4s3(ng)+Bio(i,k,iNH4_))
             UPO4S3 = Bio(i,k,iPO4_)/(akpo4s3(ng)+Bio(i,k,iPO4_))
+
+#ifdef IRON_LIMIT
+!Current F:C ratio [umol-Fe/mol-C]
+            FCratioS3=Bio(i,k,iS3_Fe)/MAX(Minval,Bio(i,k,iS3_C))
+
+! Phytoplankton growth reduction factor due to iron limitation
+! based on F:C ratio
+            FlimitS3 = FCratioS3**2.0_r8/                                 &
+     &                 (FCratioS3**2.0_r8+k_FeC**2.0_r8)
+!JF              FlimitS3 = FCratioS3/(FCratioS3+S3_FeC(ng))
+
+
+#else
+            FlimitS3 = 1.0_r8
+#endif
+
+
 #ifdef CARBON
             UCO2S3 = Bio(i,k,iTIC_)/(akco2s3(ng)+Bio(i,k,iTIC_))
 #else
             UCO2S3 = 1.0_r8
 #endif
-            GNUTS3 = min(uno3s3,UPO4S3,UCO2S3)
+!      Limitation
+            GNUTS3 = min(uno3s3,UPO4S3,UCO2S3,Flimits3)
             uno3s3=GNUTS3
             UPO4S3=GNUTS3
             UCO2S3=GNUTS3
+            FlimitS3=GNUTS3
+
 !      S3 SPECIFIC GROWTH RATE
-!using a constat Tfunc here
-               gno3S3   = VncrefS3*uno3S3*0.5_r8                        &
+
+               gno3S3   = VncrefS3*uno3S3*0.5_r8                      &
      &                     * (1.0_r8-fnitS3)/(ini_v-fnitS3)
 
-               gnh4S3   = VncrefS3*unh4S3*0.5_r8                        &
+               gnh4S3   = VncrefS3*unh4S3*0.5_r8                      &
      &                     * (1.0_r8-fnitS3)/(ini_v-fnitS3)
 
+!-----------------------------------------------------------------------
+!      Production rate
+!-----------------------------------------------------------------------
+
+!     using a constant Tfunc for S3
                PCmaxS1 = gmaxs1(ng) * fnitS1 * Tfunc
                PCmaxS2 = gmaxs2(ng) * fnitS2 * Tfunc
                PCmaxS3 = gmaxs3(ng) * fnitS3 * 0.8_r8  !Tfunc
 
-!      Production rate
+         cff2=max(PAR(i,K),0.00001_r8)                            !WHAT IS THE DIFFERENCE BETWEEN CFF2 AND CFF3?
+         cff3=max(PAR(i,k),0.00001_r8)
 
-       cff6=max(PAR(i,k),Minval)
-
-         n_nps1 =  gno3s1 * Bio(i,k,iS1_C)*(1.0_r8-ES1(ng))             &
-     &  * (1.0_r8-exp((-1.0_r8*alphachl_s1(ng)*thetaCS1*cff6)           &
+! Nutrient uptake by S1
+         n_nps1 =  gno3S1 * Bio(i,k,iS1_C)*(1.0_r8-ES1(ng))             &  !ES = Phytoplankton exudation parameter
+     &  * (1.0_r8-exp((-1.0_r8*alphachl_s1(ng)*thetaCS1*cff2)           & !!!!!isnt it supposed to be iS1_N????
      &   / PCmaxS1))
 
-         n_nps2 =  gno3s2 * Bio(i,k,iS2_C)*(1.0_r8-ES2(ng))             &
-     &  * (1.0_r8-exp((-1.0_r8*alphachl_s2(ng)*thetaCS2*cff6)           &
-     &  / PCmaxS2))
-
-         n_rps2 =  gnh4s2 * Bio(i,k,iS2_C)*(1.0_r8-ES2(ng))             &
-     &  * (1.0_r8-exp((-1.0_r8*alphachl_s2(ng)*thetaCS2*cff6)           &
-     &  / PCmaxS2))
-
-         n_nps3 =  gno3s3 * Bio(i,k,iS3_C)*(1.0_r8-ES3(ng))             &
-     &  * (1.0_r8-exp((-1.0_r8*alphachl_s3(ng)*thetaCS3*cff6)           &
-     &  / PCmaxS3))
-
-         n_rps3 =  gnh4s3 * Bio(i,k,iS3_C)*(1.0_r8-ES3(ng))             &
-     &  * (1.0_r8-exp((-1.0_r8*alphachl_s3(ng)*thetaCS3*cff6)           &
-     &  / PCmaxS3))
-
-         sio4uts2= gsio4s2* Bio(i,k,iS2_C)*(1.0_r8-ES2(ng))             &
-     &  * (1.0_r8-exp((-1.0_r8*alphachl_s2(ng)*thetaCS2*cff6)           &
-     &  / PCmaxS2)) * si2n
-
-!     uptake nh4 for s1
-
-       n_rps1 =  gnh4s1 * Bio(i,k,iS1_C)*(1.0_r8-ES1(ng))               &
-     &  * (1.0_r8-exp((-1.0_r8*alphachl_s1(ng)*thetaCS1*cff6)           &
+         n_rps1 =  gnh4S1 * Bio(i,k,iS1_C)*(1.0_r8-ES1(ng))             &
+     &  * (1.0_r8-exp((-1.0_r8*alphachl_s1(ng)*thetaCS1*cff3)           &
      &  / PCmaxS1))
 
+! Nutrient uptake by S2
+         n_nps2 =  gno3S2 * Bio(i,k,iS2_C)*(1.0_r8-ES2(ng))             &
+     &  * (1.0_r8-exp((-1.0_r8*alphachl_s2(ng)*thetaCS2*cff2)           &
+     &  / PCmaxS2))
+
+         n_rps2 =  gnh4S2 * Bio(i,k,iS2_C)*(1.0_r8-ES2(ng))             &
+     &  * (1.0_r8-exp((-1.0_r8*alphachl_s2(ng)*thetaCS2*cff3)           &
+     &  / PCmaxS2))
+
+     !silicification
+         sio4uts2= gsio4S2* Bio(i,k,iS2_C)*(1.0_r8-ES2(ng))             &
+     &  * (1.0_r8-exp((-1.0_r8*alphachl_s2(ng)*thetaCS2*cff2)           &
+     &  / PCmaxS2)) * si2n
+
+! Nutrient uptake by S3
+         n_nps3 =  gno3S3 * Bio(i,k,iS3_C)*(1.0_r8-ES3(ng))             &
+     &  * (1.0_r8-exp((-1.0_r8*alphachl_s3(ng)*thetaCS3*cff2)           &
+     &  / PCmaxS3))
+
+         n_rps3 =  gnh4S3 * Bio(i,k,iS3_C)*(1.0_r8-ES3(ng))             &
+     &  * (1.0_r8-exp((-1.0_r8*alphachl_s3(ng)*thetaCS3*cff3)           &
+     &  / PCmaxS3))
+
+
+!Growth
       n_pps1 =  n_nps1+n_rps1
       n_pps2 =  n_nps2+n_rps2
       n_pps3 =  n_nps3+n_rps3
+
+
 #ifdef PRIMARY_PROD
               NPP_slice(i,k)=NPP_slice(i,k)+n_pps1+n_pps2+n_pps3
 #endif
 
+
 !----------------------------------------------------------------------
-!     rate for c1,c2,c3
+!Luxury iron uptake: defined as function of phytoplankton empirical
+!and realized Fe:C
+!----------------------------------------------------------------------
+#ifdef IRON_LIMIT
+!Iron uptake is proportional to theoretical Fe:C ratio (R0) and realized
+!Fe:C ratio (R). R0 is a function of dissolved iron and R is a function of
+!iron already incorporated in cell. So, dissolved iron impacts uptake via R0.
+
+! For S1
+! Iron uptake proportional to growth
+!here exudation is accounted for in n_pps1 - needs separate treatment in final rate calc
+              cffFeS1_G = dtdays*n_pps1/(1.0_r8-ES1(ng))*FNratioS1/     &
+     &               MAX(Minval,Bio(i,k,iFeD_))
+              Bio(i,k,iFeD_)=Bio(i,k,iFeD_)/(1.0_r8+cffFeS1_G)
+              Bio(i,k,iS1_Fe)=Bio(i,k,iS1_Fe)+                          &
+     &                       Bio(i,k,iFeD_)*cffFeS1_G
+
+! Iron uptake to reach appropriate Fe:C ratio
+              cffFeS1_R=dtdays*(FCratioE-FCratioS1)/T_fe(ng)
+              cffFeS1_R=Bio(i,k,iS1_C)*cffFeS1_R
+! used biomass in C - no need for redfield conversion.
+! removed (106.0_r8/16.0_r8)*1.0e-3_r8
+
+              IF (cffFeS1_R.ge.0.0_r8) THEN
+!The "else" statement is when the realized Fe:C ratio is greater than the theoretical one.
+                cffFeS1_R=cffFeS1_R/MAX(Minval,Bio(i,k,iFeD_))
+                Bio(i,k,iFeD_)=Bio(i,k,iFeD_)/(1.0_r8+cffFeS1_R)
+                Bio(i,k,iS1_Fe)=Bio(i,k,iS1_Fe)+                        &
+     &                         Bio(i,k,iFeD_)*cffFeS1_R
+              ELSE
+!In that case, you decrease the iron already incorporated in the cell and put it back
+!into the dissolved pool.
+                cffFeS1_R=-cffFeS1_R/MAX(Minval,Bio(i,k,iS1_Fe))
+                Bio(i,k,iS1_Fe)=Bio(i,k,iS1_Fe)/(1.0_r8+cffFeS1_R)
+                Bio(i,k,iFeD_)=Bio(i,k,iFeD_)+                          &
+     &                         Bio(i,k,iS1_Fe)*cffFeS1_R
+              END IF
+
+
+!For S2
+! Iron uptake proportional to growth
+              FNratioS2=Bio(i,k,iS2_Fe)/MAX(Minval,Bio(i,k,iS2_N))
+              cffFeS2_G = dtdays*n_pps2/(1.0_r8-ES2(ng))*FNratioS2/     &
+     &               MAX(Minval,Bio(i,k,iFeD_))
+              Bio(i,k,iFeD_)=Bio(i,k,iFeD_)/(1.0_r8+cffFeS2_G)
+              Bio(i,k,iS2_Fe)=Bio(i,k,iS2_Fe)+                          &
+     &                       Bio(i,k,iFeD_)*cffFeS2_G
+
+! Iron uptake to reach appropriate Fe:C ratio
+              cffFeS2_R=dtdays*(FCratioE-FCratioS2)/T_fe(ng)
+              cffFeS2_R=Bio(i,k,iS2_C)*cffFeS2_R                        !used biomass in C - no need for redfield conversion (106.0_r8/16.0_r8)
+              IF (cffFeS2_R.ge.0.0_r8) THEN
+                cffFeS2_R=cffFeS2_R/MAX(Minval,Bio(i,k,iFeD_))
+                Bio(i,k,iFeD_)=Bio(i,k,iFeD_)/(1.0_r8+cffFeS2_R)
+                Bio(i,k,iS2_Fe)=Bio(i,k,iS2_Fe)+                        &
+     &                         Bio(i,k,iFeD_)*cffFeS2_R
+              ELSE
+                cffFeS2_R=-cffFeS2_R/MAX(Minval,Bio(i,k,iS2_Fe))
+                Bio(i,k,iS2_Fe)=Bio(i,k,iS2_Fe)/(1.0_r8+cffFeS2_R)
+                Bio(i,k,iFeD_)=Bio(i,k,iFeD_)+                          &
+     &                         Bio(i,k,iS2_Fe)*cffFeS2_R
+              END IF
+
+
+!For S3
+! Iron uptake proportional to growth
+              FNratioS3=Bio(i,k,iS3_Fe)/MAX(Minval,Bio(i,k,iS3_N))
+              cffFeS3_G = dtdays*n_pps3/(1.0_r8-ES3(ng))*FNratioS3/     &
+     &               MAX(Minval,Bio(i,k,iFeD_))
+              Bio(i,k,iFeD_)=Bio(i,k,iFeD_)/(1.0_r8+cffFeS3_G)
+              Bio(i,k,iS3_Fe)=Bio(i,k,iS3_Fe)+                          &
+     &                       Bio(i,k,iFeD_)*cffFeS3_G
+
+! Iron uptake to reach appropriate Fe:C ratio
+              cffFeS3_R=dtdays*(FCratioE-FCratioS3)/T_fe(ng)
+              cffFeS3_R=Bio(i,k,iS3_C)*cffFeS3_R                         !used biomass in C - no need for redfield conversion (106.0_r8/16.0_r8)
+              IF (cffFeS3_R.ge.0.0_r8) THEN
+                cffFeS3_R=cffFeS3_R/MAX(Minval,Bio(i,k,iFeD_))
+                Bio(i,k,iFeD_)=Bio(i,k,iFeD_)/(1.0_r8+cffFeS3_R)
+                Bio(i,k,iS3_Fe)=Bio(i,k,iS3_Fe)+                        &
+     &                         Bio(i,k,iFeD_)*cffFeS3_R
+              ELSE
+                cffFeS3_R=-cffFeS3_R/MAX(Minval,Bio(i,k,iS3_Fe))
+                Bio(i,k,iS3_Fe)=Bio(i,k,iS3_Fe)/(1.0_r8+cffFeS3_R)
+                Bio(i,k,iFeD_)=Bio(i,k,iFeD_)+                          &
+     &                         Bio(i,k,iS3_Fe)*cffFeS3_R
+              END IF
+
+#endif
+
+!----------------------------------------------------------------------
+! For iron code, Exudation from Phytoplankton needs
+! to be treated separately
+!----------------------------------------------------------------------
+
+#ifdef IRON_LIMIT
+             cffFeExuS1 = Bio(i,k,iS1_C)*(1.0_r8-ES1(ng))*FCratioS1
+             cffFeExuS2 = Bio(i,k,iS2_C)*(1.0_r8-ES2(ng))*FCratioS2
+             cffFeExuS3 = Bio(i,k,iS3_C)*(1.0_r8-ES3(ng))*FCratioS3
+#endif
+
+!----------------------------------------------------------------------
+!     Rate for c1,c2,c3 and biosynthesis cost - both used to calculate
+!     carbon uptake further down in the code (see npc)
 !----------------------------------------------------------------------
 
            PCphotoS1 = PCmaxS1                                          &
-     &    * (1.0_r8-exp((-1.0_r8*alphachl_s1(ng)*thetaCS1*cff6)         &
+     &    * (1.0_r8-exp((-1.0_r8*alphachl_s1(ng)*thetaCS1*cff2)         &
      &         / PCmaxS1))
+
            PCphotoS2 = PCmaxS2                                          &
-     &    * (1.0_r8-exp((-1.0_r8*alphachl_s2(ng)*thetaCS2*cff6)         &
+     &    * (1.0_r8-exp((-1.0_r8*alphachl_s2(ng)*thetaCS2*cff2)         &
      &         / PCmaxS2))
 
            PCphotoS3 = PCmaxS3                                          &
-     &    * (1.0_r8-exp((-1.0_r8*alphachl_s3(ng)*thetaCS3*cff6)         &
+     &    * (1.0_r8-exp((-1.0_r8*alphachl_s3(ng)*thetaCS3*cff2)         &
      &         / PCmaxS3))
 
-       cff5=max(n_pps1,Minval)
-       lambdaS1 = lambdano3_s1(ng) * max(n_nps1/cff5,0.5_r8)
+! Cost of biosynthesis
 
-       cff5=max(n_pps2,Minval)
-       lambdaS2 = lambdano3_s2(ng) * max(n_nps2/cff5,0.5_r8)
+       cff4=max(n_pps1,0.000001_r8)
+       lambdaS1 = lambdano3_s1(ng) * max(n_nps1/cff4,0.5_r8)
 
-       cff5=max(n_pps3,Minval)
-       lambdaS3 = lambdano3_s3(ng) * max(n_nps3/cff5,0.5_r8)
+       cff4=max(n_pps2,0.000001_r8)
+       lambdaS2 = lambdano3_s2(ng) * max(n_nps2/cff4,0.5_r8)
+
+       cff4=max(n_pps3,0.000001_r8)
+       lambdaS3 = lambdano3_s3(ng) * max(n_nps3/cff4,0.5_r8)
 
 !----------------------------------------------------------------------
-!     rate for chl1,chl2,chl3
+!     Rate for Chlorophyll uptake
 !----------------------------------------------------------------------
 
                   pChlS1 = thetaNmax_s1(ng) * PCmaxS1                   &
-     &                        / (alphachl_s1(ng)*thetaCS1*cff6)
+     &                        / (alphachl_s1(ng)*thetaCS1*cff2)
                   pChlS2 = thetaNmax_s2(ng) * PCmaxS2                   &
-     &                        / (alphachl_s2(ng)*thetaCS2*cff6)
+     &                        / (alphachl_s2(ng)*thetaCS2*cff2)
                   pChlS3 = thetaNmax_s3(ng) * PCmaxS3                   &
-     &                        / (alphachl_s3(ng)*thetaCS3*cff6)
+     &                        / (alphachl_s3(ng)*thetaCS3*cff2)
 
 !----------------------------------------------------------------------
-!     rate for grazing
+!     Rate for grazing
 !----------------------------------------------------------------------
 
         ro8z1=rop(ng)*Bio(i,k,iS1_N)+rob(ng)*Bio(i,k,iBAC_)
@@ -780,6 +1213,7 @@
         gent02=beta1(ng)*rob(ng)*Bio(i,k,iBAC_)*Bio(i,k,iZ1_N)          &
      &        /(akz1(ng)*ro8z1+ro9z1)
 
+!       Small Zooplankton grazing on small Phytoplankton
         gs1zz1 = gent01*Bio(i,k,iS1_N)
         gc1zz1 = gent01*Bio(i,k,iS1_C)
         gchl1zz1 = gent01*Bio(i,k,iS1CH)
@@ -809,9 +1243,22 @@
      &             /(akz2(ng)*ro8+ro9)
       endif
 
+!     Large Zooplankton grazing on Diatoms
       gs2zz2  = gent11*Bio(i,k,iS2_N)
       gc2zz2  = gent11*Bio(i,k,iS2_C)
       gchl2zz2  = gent11*Bio(i,k,iS2CH)
+
+!     Large Zooplankton grazing on Coccos
+      gs3zz2  = gent14*Bio(i,k,iS3_N)
+      gc3zz2  = gent14*Bio(i,k,iS3_C)
+      gchl3zz2  = gent14*Bio(i,k,iS3CH)
+
+#ifdef IRON_LIMIT
+      gs1Fezz1  = gent01*Bio(i,k,iS1_Fe)
+      gs2Fezz2  = gent11*Bio(i,k,iS2_Fe)
+      gs3Fezz2  = gent14*Bio(i,k,iS3_Fe)
+#endif
+
 
       gzz1zz2  = gent12*Bio(i,k,iZ1_N)
       gzzc1zz2 = gent12*Bio(i,k,iZ1_C)
@@ -819,9 +1266,23 @@
       gddnzz2  = gent13*Bio(i,k,iDD_N)
       gddczz2  = gent13*Bio(i,k,iDD_C)
 
-      gs3zz2  = gent14*Bio(i,k,iS3_N)
-      gc3zz2  = gent14*Bio(i,k,iS3_C)
-      gchl3zz2  = gent14*Bio(i,k,iS3CH)
+
+!!grazing stop
+!      if(Bio(i,k,iS1_N).le.0.002_r8)then
+!        gs1zz1  = 0.0_r8
+!        gc1zz1  = 0.0_r8
+!        gchl1zz1  = 0.0_r8
+!      endif
+!      if(Bio(i,k,iS2_N).le.0.002_r8)then
+!        gs2zz2  = 0.0_r8
+!        gc2zz2  = 0.0_r8
+!        gchl2zz2  = 0.0_r8
+!       endif
+!      if(Bio(i,k,iS3_N).le.0.002_r8)then
+!        gs3zz2  = 0.0_r8
+!        gc3zz2  = 0.0_r8
+!        gchl3zz2  = 0.0_r8
+!      endif
 
       gtzz2=gddnzz2+gzz1zz2+gs2zz2+gs3zz2
       gtczz2=gddczz2+gzzc1zz2+gc2zz2+gc3zz2
@@ -845,7 +1306,14 @@
 
       mortbac =bgamma12(ng)*Bio(i,k,iBAC_)
 
-      excrz1 =reg1(ng)*Bio(i,k,iZ1_N)
+#ifdef IRON_LIMIT
+      morts1Fe = bgamma3(ng)*Bio(i,k,iS1_Fe)
+      morts2Fe = bgamma4(ng)*Bio(i,k,iS2_Fe)
+      morts3Fe = bgamma10(ng)*Bio(i,k,iS3_Fe)
+#endif
+
+
+      excrz1 =reg1(ng)*Bio(i,k,iZ1_N)                            !I'm not sure how to account for excretion, since we don't have Fe associated with Z
       excrzc1=reg1(ng)*Bio(i,k,iZ1_C)
 
       excrz2 =reg2(ng)*Bio(i,k,iZ2_N)
@@ -854,28 +1322,65 @@
       remvz2  =bgamma(ng)*Bio(i,k,iZ2_N)*Bio(i,k,iZ2_N)
       remvzc2 =bgamma(ng)*Bio(i,k,iZ2_C)*Bio(i,k,iZ2_C)
 
+      if (k .eq. 1) then
+        cent1=wsp2(ng)/Hz(i,j,k) !wsp = sinking velocity
+        morts2=cent1*Bio(i,k+1,iS2_N)
+        mortc2=cent1*Bio(i,k+1,iS2_C)
+        mortchl2=cent1*Bio(i,k+1,iS2CH)
+
+        cent1=wsp3(ng)/Hz(i,j,k)
+        morts3=cent1*Bio(i,k+1,iS3_N)
+        mortc3=cent1*Bio(i,k+1,iS3_C)
+        mortchl3=cent1*Bio(i,k+1,iS3CH)
+
+#ifdef IRON_LIMIT
+        morts3Fe=cent1*Bio(i,k+1,iS3_Fe)
+        morts2Fe=cent1*Bio(i,k+1,iS2_Fe)
+#endif
+      endif
+
 !     -------------------------------------------------------
 !     CALCULATING THE nitrification and reminalization
 !     -------------------------------------------------------
 
       nitrif = bgamma7(ng)*Bio(i,k,iNH4_)
-      if(k.gt.1)then
-      cent1=max(0.15_r8*Bio(i,k,itemp)/25.0_r8+0.005_r8,0.005_r8)
-      else
-        cent1=4.5_r8*bgamma5(ng)
-      endif
-      MIDDN = 0.05_r8*cent1*Bio(i,k,iDD_N)    !PON to DON
-      MIDDc = 0.05_r8*cent1*Bio(i,k,iDD_C)    !POC to DOC
-      MIPON = 0.95_r8*cent1*Bio(i,k,iDD_N)    !PON to NH4
-      miPOC = 0.95_r8*cent1*Bio(i,k,iDD_C)    !POC to tco2
+      if (k.gt.1) then
+        cent1=max(0.15_r8*Bio(i,k,itemp)/25.0_r8+0.005_r8,0.005_r8)
+        MIDDN = 0.05_r8*cent1*Bio(i,k,iDD_N)    !PON to DON
+        MIDDc = 0.05_r8*cent1*Bio(i,k,iDD_C)    !POC to DOC
+        MIPON = 0.95_r8*cent1*Bio(i,k,iDD_N)    !PON to NH4
+        miPOC = 0.95_r8*cent1*Bio(i,k,iDD_C)    !POC to tco2
 
-      if(k.gt.1)then
-      cent1=max(0.19_r8*Bio(i,k,itemp)/25.0_r8+0.005_r8,0.005_r8)
       else
-       cent1=4.5_r8*bgamma5(ng)
-      endif
-      MIDDSI = cent1*Bio(i,k,iDDSi)
+!        cent1=4.5_r8*bgamma5(ng)
+        cent1=wsdn(ng)/Hz(i,j,k)
+        cent2=wsdc(ng)/Hz(i,j,k)
 
+        MIDDN = 0.05_r8*cent1*Bio(i,k,iDD_N)    !PON to DON
+        MIDDc = 0.05_r8*cent1*Bio(i,k,iDD_C)    !POC to DOC
+        MIPON = 0.95_r8*cent1*Bio(i,k,iDD_N)    !PON to NH4
+        miPOC = 0.95_r8*cent1*Bio(i,k,iDD_C)    !POC to tco2
+
+      endif
+
+      if (k.gt.1) then
+        cent1=max(0.19_r8*Bio(i,k,itemp)/25.0_r8+0.005_r8,0.005_r8)
+        MIDDSI = cent1*Bio(i,k,iDDSi)
+      else
+!        cent1=4.5_r8*bgamma5(ng)
+        cent1=wsdsi(ng)/Hz(i,j,k)
+        MIDDSI = cent1*Bio(i,k+1,iDDSi)
+      endif
+
+      if (k.gt.1) then
+!        cent1=max(0.19_r8*Bio(i,k,itemp)/25.0_r8+0.005_r8,0.005_r8)
+        cent1=0.002
+        MIDDCA = cent1*Bio(i,k,iDDCA)
+      else
+!        cent1=4.5_r8*bgamma5(ng)
+        cent1=wsdca(ng)/Hz(i,j,k)
+        MIDDCA = cent1*Bio(i,k+1,iDDCA)
+      endif
 
 !photolysis for CDOC
 
@@ -940,6 +1445,7 @@
 
 !--------DOC
 
+!Carbon uptake by phytoplankton
       npc1=PCphotoS1*Bio(i,k,iS1_C)-lambdaS1 * n_pps1/(1.0_r8-ES1(ng))
       npc2=PCphotoS2*Bio(i,k,iS2_C)-lambdaS2 * n_pps2/(1.0_r8-ES2(ng))
       npc3=PCphotoS3*Bio(i,k,iS3_C)-lambdaS3 * n_pps3/(1.0_r8-ES3(ng))
@@ -974,54 +1480,65 @@
        cldocpp=colorFR1(ng)*(npdocs+ ratiol1(ng)*npdocz                 &
      &+ratiol2(ng)*npdocs2 )                                            &
      &-UVLDOC-OXR*UVLDIC                                                &
-     &+lysis_doc*Bio(i,k,iCSDC)/Bio(i,k,iSDOC)                          &
+!     &+lysis_doc*Bio(i,k,iCSDC)/Bio(i,k,iSDOC)                          &
+     & +bgamma13(ng)*cnb(ng)*                                           &
+     &            Bio(i,k,iBAC_)*Bio(i,k,iCSDC)                         &
+     &          /(ksdoc(ng)+Bio(i,k,iCSDC))                             &
      &-(cnb(ng)*fbac+rbac)*(1.0_r8-ratiobc(ng))
 
        csdocpp=(1.0_r8-ratiol1(ng))*colorFR2(ng)*NPDOCZ                 &
      &+(1.0_r8-ratiol2(ng))*colorFR2(ng)*npdocs2                        &
      &-UVSDOC-OXR*UVSDIC                                                &
-     &-lysis_doc*Bio(i,k,iCSDC)/Bio(i,k,iSDOC)
+!     &-lysis_doc*Bio(i,k,iCSDC)/Bio(i,k,iSDOC)
+     & -bgamma13(ng)*cnb(ng)*                                           &
+     &            Bio(i,k,iBAC_)*Bio(i,k,iCSDC)                         &
+     &          /(ksdoc(ng)+Bio(i,k,iCSDC))
+
 
 !-----------------------------------------------------------------------
 !     CALCULATING THE RATE
+! These are the new values of the statevariables for each timestep:
 !-----------------------------------------------------------------------
+
+
         Qsms1 = - n_nps1/(1.0_r8-ES1(ng)) - n_nps2/(1.0_r8-ES2(ng))     &
      &          - n_nps3/(1.0_r8-ES3(ng))                               &
-     &          + OXR*NITRIF
+     &          + OXR*NITRIF                                                 !iNO3_
         Qsms3 = - n_rps1/(1.0_r8-ES1(ng)) - n_rps2/(1.0_r8-ES2(ng))     &
      &             - n_rps3/(1.0_r8-ES3(ng))                            &
      &             + OXR*EXCRZ1 + OXR*EXCRZ2                            &
      &             - OXR*NITRIF                                         &
      &             + OXR*MIPON                                          &
-     &             + OXR*ebac
+     &             + OXR*ebac                                                !iNH4_
 
-        Qsms4 = + n_nps1 + n_rps1 - gs1zz1 - MORTS1
-        Qsms5 = + n_nps2 + n_rps2 - gs2zz2 - MORTS2
-        Qsms15 = npc1* (1.0_r8-ES1(ng)) - gc1zz1 - MORTc1
-        Qsms16 = npc2* (1.0_r8-ES2(ng)) - gc2zz2 - MORTc2
-        Qsms18 = pChlS1*n_pps1 - gchl1zz1 - MORTchl1
-        Qsms19 = pChlS2*n_pps2 - gchl2zz2 - MORTchl2
+
+        Qsms4 = + n_nps1 + n_rps1 - gs1zz1 - MORTS1                          !iS1_N
+        Qsms5 = + n_nps2 + n_rps2 - gs2zz2 - MORTS2                          !iS2_N
+        Qsms15 = npc1* (1.0_r8-ES1(ng)) - gc1zz1 - MORTc1                    !iS1_C
+        Qsms16 = npc2* (1.0_r8-ES2(ng)) - gc2zz2 - MORTc2                    !iS2_C
+        Qsms18 = pChlS1*n_pps1 - gchl1zz1 - MORTchl1                         !iS1CH
+        Qsms19 = pChlS2*n_pps2 - gchl2zz2 - MORTchl2                         !iS2CH
 
         Qsms6 = + bgamma1(ng)*(gs1zz1+gbzz1)*(1.0_r8-flz1(ng))          &
-     &         - OXR*EXCRZ1 - gzz1zz2
+     &         - OXR*EXCRZ1 - gzz1zz2                                        !iZ1_N
 
         Qsms7 = bgamma2(ng)*gtzz2*(1.0_r8-flz2(ng))-OXR*EXCRZ2          &
-     &             - REMVZ2
+     &             - REMVZ2                                                  !iZ2_N
         Qsms23 = bgamma1(ng)*(gc1zz1+gbczz1)*(1.0_r8-flz1(ng))          &
-     &         - OXR*EXCRZc1 - gzzc1zz2
+     &         - OXR*EXCRZc1 - gzzc1zz2                                      !iZ1_C
         Qsms24 = bgamma22(ng)*gtczz2*(1.0_r8-flz2(ng))-OXR*EXCRZc2      &
-     &             - REMVZc2
+     &             - REMVZc2                                                 !iZ2_C
         Qsms8 = (1.0_r8-bgamma2(ng))*gtzz2*(1.0_r8-flz2(ng))            &
      &        +(1.0_r8-bgamma1(ng))*(gs1zz1+gbzz1)*(1.0_r8-flz1(ng))    &
      &  +MORTS1*(1.0_r8-mtos1(ng))+MORTS3*(1.0_r8-mtos3(ng))            &
      &             - gddnzz2                                            &
      &             + MORTS2*(1.0_r8-mtos2(ng))                          &
      &             - OXR*MIPON                                          &
-     &             - MIDDN
+     &             - MIDDN                                                   !iDD_N
 
-        Qsms25 =n_nps3 + n_rps3 - gs3zz2 - MORTS3
-        Qsms26=pChlS3*n_pps3 - gchl3zz2 - MORTchl3
-        Qsms31=npc3* (1.0_r8-ES3(ng))- gc3zz2 - MORTc3
+        Qsms25 =n_nps3 + n_rps3 - gs3zz2 - MORTS3                            !iS3_N
+        Qsms26=pChlS3*n_pps3 - gchl3zz2 - MORTchl3                           !iS3_CH
+        Qsms31=npc3* (1.0_r8-ES3(ng))- gc3zz2 - MORTc3                       !iS3_C
 
         Qsms22 =(1.0_r8-bgamma22(ng))*gtczz2*(1.0_r8-flz2(ng))          &
      &  +(1.0_r8-bgamma1(ng))*(gc1zz1+gbczz1)*(1.0_r8-flz1(ng))         &
@@ -1029,26 +1546,37 @@
      &             - gddCzz2                                            &
      &             + MORTC2*(1.0_r8-mtos2(ng))                          &
      &             - OXR*MIPOC                                          &
-     &             - MIDDC
+     &             - MIDDC                                                   !iDD_C
 
         Qsms27 = ldonpp
         Qsms28 = ldocpp
         Qsms29 = sdonpp
         Qsms30 = sdocpp
 
-        Qsms2 = - sio4uts2/(1.0_r8-ES2(ng))+MIDDSI
-        Qsms9 = ( gs2zz2 + MORTS2)*si2n - MIDDSI
+        Qsms2 = - sio4uts2/(1.0_r8-ES2(ng))+MIDDSI                           !iSiOH
+        Qsms9 = ( gs2zz2 + MORTS2)*si2n - MIDDSI                             !iDDSi
         Qsms10= - (n_pps1/(1.0_r8-ES1(ng))+n_pps2/(1.0_r8-ES2(ng))      &
      &             + n_pps3/(1.0_r8-ES3(ng)))*p2n(ng)                   &
      &             + OXR*(EXCRZ1 + EXCRZ2)*p2n(ng)                      &
-     &  + OXR*MIPON*p2n(ng)  + OXR*ebac*p2n(ng)
+     &  + OXR*MIPON*p2n(ng)  + OXR*ebac*p2n(ng)                              !iPO4_
 
-        Qsms32=apsilon(ng)*(gc3zz2+MORTc3)- MIDDCA
-        Qsms33=fbac-gbzz1- mortbac
-        Qsms34=cldocpp
-        Qsms35=csdocpp
+        Qsms32=apsilon(ng)*(gc3zz2+MORTc3)- MIDDCA                           !iDDCA
+        Qsms33=fbac-gbzz1- mortbac                                           !iBAC_
+        Qsms34=cldocpp                                                       !iCLDC
+        Qsms35=csdocpp                                                       !iCSDC
+
+#ifdef IRON_LIMIT
+!iS1_Fe: Losses due to grazing by Z1, mortality
+        Qsms36= - gs1Fezz1 - morts1Fe
+        Qsms37= - gs2Fezz2 - morts2Fe     !iS2_Fe
+        Qsms38= - gs3Fezz2 - morts3Fe     !iS3_Fe  !S2 and S3 need sinking term????
+!iFe_
+        Qsms39= (morts1Fe+morts2Fe+morts3Fe)*FeRR(ng)                   & !mortality
+     &          + (gs1Fezz1+gs2Fezz2+gs3Fezz2)*FeRR(ng)                   !Z grazing
+#endif
+
 #ifdef OXYGEN
-      if(k.gt.1)then
+      if (k.gt.1) then
         Qsms11= (n_nps1/(1.0_r8-ES1(ng))+n_nps2/(1.0_r8-ES2(ng))        &
      &          +n_nps3/(1.0_r8-ES3(ng)))*o2no(ng)                      &
      &          +(n_rps1/(1.0_r8-ES1(ng))+n_rps2/(1.0_r8-ES2(ng))       &
@@ -1060,7 +1588,7 @@
         Qsms11= (n_nps1/(1.0_r8-ES1(ng))+n_nps2/(1.0_r8-ES2(ng))        &
      &          + n_nps3/(1.0_r8-ES3(ng)))*o2no(ng)                     &
      &          + (n_rps1/(1.0_r8-ES1(ng))+n_rps2/(1.0_r8-ES2(ng))      &
-     &          +n_rps3/(1.0_r8-ES3(ng)))*o2nh(ng) 			
+     &          +n_rps3/(1.0_r8-ES3(ng)))*o2nh(ng)
       endif
 #endif
 
@@ -1118,6 +1646,12 @@
         NQsms13 = 0.0_r8
 #endif
 
+#ifdef IRON_LIMIT
+        NQsms36 =  0.0_r8
+        NQsms37 =  0.0_r8
+        NQsms38 =  0.0_r8
+        NQsms39 =  0.0_r8
+#endif
 !-----------------------------------------------------------------------
 !     add q10 effect
 !-----------------------------------------------------------------------
@@ -1157,45 +1691,88 @@
         sms11= Q10*Qsms11 + NQsms11
 #endif
 
+#ifdef IRON_LIMIT
+        sms36 =  Q10*Qsms36 + NQsms36
+        sms37 =  Q10*Qsms37 + NQsms37
+        sms38 =  Q10*Qsms38 + NQsms38
+        sms39 =  Q10*Qsms39 + NQsms39
+#endif
+
 #ifdef CARBON
         sms12= Q10*Qsms12 + NQsms12
         sms13= Q10*Qsms13 + NQsms13
 #endif
 
-	bio(i,k,iNO3_)=bio(i,k,iNO3_)+dtdays*sms1
-	bio(i,k,iSiOH)=bio(i,k,iSiOH)+dtdays*sms2
-	bio(i,k,iNH4_)=bio(i,k,iNH4_)+dtdays*sms3
-	bio(i,k,iPO4_)=bio(i,k,iPO4_)+dtdays*sms10
-	bio(i,k,iS1_N)=bio(i,k,iS1_N)+dtdays*sms4
-	bio(i,k,iS1_C)=bio(i,k,iS1_C)+dtdays*sms15
-	bio(i,k,iS1CH)=bio(i,k,iS1CH)+dtdays*sms18
-	bio(i,k,iS2_N)=bio(i,k,iS2_N)+dtdays*sms5
-	bio(i,k,iS2_C)=bio(i,k,iS2_C)+dtdays*sms16
-	bio(i,k,iS2CH)=bio(i,k,iS2CH)+dtdays*sms19
-	bio(i,k,iS3_N)=bio(i,k,iS3_N)+dtdays*sms25
-	bio(i,k,iS3_C)=bio(i,k,iS3_C)+dtdays*sms31
-	bio(i,k,iS3CH)=bio(i,k,iS3CH)+dtdays*sms26
-	bio(i,k,iZ1_N)=bio(i,k,iZ1_N)+dtdays*sms6
-	bio(i,k,iZ1_C)=bio(i,k,iZ1_C)+dtdays*sms23
-	bio(i,k,iZ2_N)=bio(i,k,iZ2_N)+dtdays*sms7
-	bio(i,k,iZ2_C)=bio(i,k,iZ2_C)+dtdays*sms24
-	bio(i,k,iBAC_)=bio(i,k,iBAC_)+dtdays*sms33
-	bio(i,k,iDD_N)=bio(i,k,iDD_N)+dtdays*sms8
-	bio(i,k,iDD_C)=bio(i,k,iDD_C)+dtdays*sms22
-	bio(i,k,iDDSi)=bio(i,k,iDDSi)+dtdays*sms9
-	bio(i,k,iLDON)=bio(i,k,iLDON)+dtdays*sms27
-	bio(i,k,iLDOC)=bio(i,k,iLDOC)+dtdays*sms28
-	bio(i,k,iSDON)=bio(i,k,iSDON)+dtdays*sms29
-	bio(i,k,iSDOC)=bio(i,k,iSDOC)+dtdays*sms30
-	bio(i,k,iCLDC)=bio(i,k,iCLDC)+dtdays*sms34
-	bio(i,k,iCSDC)=bio(i,k,iCSDC)+dtdays*sms35
-	bio(i,k,iDDCA)=bio(i,k,iDDCA)+dtdays*sms32
+#ifdef DIAGNOSTICS_BIO
+        DiaBio3d(i,j,k,iPPro1)=DiaBio3d(i,j,k,iPPro1)+                 &
+# ifdef WET_DRY
+        &            rmask_io(i,j)*                                    &
+# endif
+        &         (n_nps1 + n_rps1)*dtdays
+
+        DiaBio3d(i,j,k,iPPro2)=DiaBio3d(i,j,k,iPPro2)+                 &
+# ifdef WET_DRY
+        &            rmask_io(i,j)*                                    &
+# endif
+        &            (n_nps2 + n_rps2)*dtdays
+        DiaBio3d(i,j,k,iPPro3)=DiaBio3d(i,j,k,iPPro3)+                 &
+# ifdef WET_DRY
+        &            rmask_io(i,j)*                                    &
+# endif
+        &            (n_nps3 + n_rps3)*dtdays
+
+        DiaBio3d(i,j,k,iNO3u)=DiaBio3d(i,j,k,iNO3u)+                   &
+# ifdef WET_DRY
+        &              rmask_io(i,j)*                                  &
+# endif
+        &              (n_nps1+n_nps2)*dtdays
+# endif
+
+        Bio(i,k,iNO3_)=Bio(i,k,iNO3_)+dtdays*sms1
+        Bio(i,k,iSiOH)=Bio(i,k,iSiOH)+dtdays*sms2
+        Bio(i,k,iNH4_)=Bio(i,k,iNH4_)+dtdays*sms3
+        Bio(i,k,iPO4_)=Bio(i,k,iPO4_)+dtdays*sms10
+        Bio(i,k,iS1_N)=Bio(i,k,iS1_N)+dtdays*sms4
+        Bio(i,k,iS1_C)=Bio(i,k,iS1_C)+dtdays*sms15
+        Bio(i,k,iS1CH)=Bio(i,k,iS1CH)+dtdays*sms18
+        Bio(i,k,iS2_N)=Bio(i,k,iS2_N)+dtdays*sms5
+        Bio(i,k,iS2_C)=Bio(i,k,iS2_C)+dtdays*sms16
+        Bio(i,k,iS2CH)=Bio(i,k,iS2CH)+dtdays*sms19
+        Bio(i,k,iS3_N)=Bio(i,k,iS3_N)+dtdays*sms25
+        Bio(i,k,iS3_C)=Bio(i,k,iS3_C)+dtdays*sms31
+        Bio(i,k,iS3CH)=Bio(i,k,iS3CH)+dtdays*sms26
+        Bio(i,k,iZ1_N)=Bio(i,k,iZ1_N)+dtdays*sms6
+        Bio(i,k,iZ1_C)=Bio(i,k,iZ1_C)+dtdays*sms23
+        Bio(i,k,iZ2_N)=Bio(i,k,iZ2_N)+dtdays*sms7
+        Bio(i,k,iZ2_C)=Bio(i,k,iZ2_C)+dtdays*sms24
+        Bio(i,k,iBAC_)=Bio(i,k,iBAC_)+dtdays*sms33
+        Bio(i,k,iDD_N)=Bio(i,k,iDD_N)+dtdays*sms8
+        Bio(i,k,iDD_C)=Bio(i,k,iDD_C)+dtdays*sms22
+        Bio(i,k,iDDSi)=Bio(i,k,iDDSi)+dtdays*sms9
+        Bio(i,k,iLDON)=Bio(i,k,iLDON)+dtdays*sms27
+        Bio(i,k,iLDOC)=Bio(i,k,iLDOC)+dtdays*sms28
+        Bio(i,k,iSDON)=Bio(i,k,iSDON)+dtdays*sms29
+        Bio(i,k,iSDOC)=Bio(i,k,iSDOC)+dtdays*sms30
+        Bio(i,k,iCLDC)=Bio(i,k,iCLDC)+dtdays*sms34
+        Bio(i,k,iCSDC)=Bio(i,k,iCSDC)+dtdays*sms35
+        Bio(i,k,iDDCA)=Bio(i,k,iDDCA)+dtdays*sms32
 #ifdef OXYGEN
-	bio(i,k,iOXYG)=bio(i,k,iOXYG)+dtdays*sms11
+        Bio(i,k,iOXYG)=Bio(i,k,iOXYG)+dtdays*sms11
 #endif
+
+#ifdef IRON_LIMIT
+        Bio(i,k,iS1_Fe)=Bio(i,k,iS1_Fe)+dtdays*sms36
+        Bio(i,k,iS2_Fe)=Bio(i,k,iS2_Fe)+dtdays*sms37
+        Bio(i,k,iS3_Fe)=Bio(i,k,iS3_Fe)+dtdays*sms38
+        Bio(i,k,iFeD_)=Bio(i,k,iFeD_)+dtdays*sms39
+#endif
+
+
 #ifdef CARBON
-	bio(i,k,iTIC_)=bio(i,k,iTIC_)+dtdays*sms12
-	bio(i,k,iTAlk)=bio(i,k,iTAlk)+dtdays*sms13
+        Bio(i,k,iTIC_)=Bio(i,k,iTIC_)+dtdays*sms12
+#ifdef TALK_NONCONSERV
+        Bio(i,k,iTAlk)=Bio(i,k,iTAlk)+dtdays*sms13
+#endif
 #endif
           END DO  !i loop
         END DO  !k loop
@@ -1203,7 +1780,7 @@
 #ifdef PRIMARY_PROD
         DO k=1,N(ng)
           DO i=Istr,Iend
-	    Bio_NPP(i,j) = Bio_NPP(i,j) + Hz(i,j,k)*NPP_slice(i,k)
+            Bio_NPP(i,j) = Bio_NPP(i,j) + Hz(i,j,k)*NPP_slice(i,k)
           END DO
         END DO
 #endif
@@ -1265,7 +1842,16 @@
      &                     Bio(IminS:,k,iOxyg), kw660,                  &
      &                     1.0_r8, o2sat, o2flx)
          DO i=Istr,Iend
-	  bio(i,k,iOxyg)=bio(i,k,iOxyg)+dtdays*o2flx(i)*Hz_inv(i,k)
+          Bio(i,k,iOxyg)=Bio(i,k,iOxyg)+dtdays*o2flx(i)*Hz_inv(i,k)
+
+# ifdef DIAGNOSTICS_BIO
+            DiaBio2d(i,j,iO2fx)=DiaBio2d(i,j,iO2fx)+                   &
+#  ifdef WET_DRY
+     &                          rmask_io(i,j)*                         &
+#  endif
+     &                          o2flx(i)*dtdays
+# endif
+
          END DO
 #endif
 #ifdef CARBON
@@ -1285,17 +1871,31 @@
      &                     Bio(IminS:,k,itemp), Bio(IminS:,k,isalt),    &
      &                     Bio(IminS:,k,iTIC_), Bio(IminS:,k,iTAlk),    &
      &                     Bio(IminS:,k,iPO4_), Bio(IminS:,k,iSiOH),    &
-     &                     kw660, 1.0_r8,pco2a(ng), co2flx)
+     &                     kw660, 1.0_r8,pco2a(ng), co2flx,pco2s)
        DO i=Istr,Iend
-	bio(i,k,iTIC_)=bio(i,k,iTIC_)+dtdays*co2flx(i)*Hz_inv(i,k)
+        Bio(i,k,iTIC_)=Bio(i,k,iTIC_)+dtdays*co2flx(i)*Hz_inv(i,k)
+
+# ifdef DIAGNOSTICS_BIO
+            DiaBio2d(i,j,iCOfx)=DiaBio2d(i,j,iCOfx)+                   &
+#  ifdef WET_DRY
+     &                          rmask_io(i,j)*                         &
+#  endif
+     &                          co2flx(i)*dtdays
+
+            DiaBio2d(i,j,ipCO2)=pco2s(i)
+#  ifdef WET_DRY
+            DiaBio2d(i,j,ipCO2)=DiaBio2d(i,j,ipCO2)*rmask_io(i,j)
+#  endif
+# endif
+
        END DO
 
 !     adjust the alkalinity
 !       DO i=Istr,Iend
 !           DO k=1,N(ng)
-! 	cff0=Bio_bak(i,k,iNO3_)-Bio(i,k,iNO3_)-                         &
+!         cff0=Bio_bak(i,k,iNO3_)-Bio(i,k,iNO3_)-                         &
 !     &       (Bio_bak(i,k,iNH4_)-Bio(i,k,iNH4_))
-!	bio(i,k,iTAlk)=bio(i,k,iTAlk)+cff0
+!        Bio(i,k,iTAlk)=Bio(i,k,iTAlk)+cff0
 !           END DO
 !        END DO
 #endif
@@ -1304,28 +1904,33 @@
 !     CALCULATING THE SINKING FLUX
 !-----------------------------------------------------------------------
 !
-!      SINK_LOOP: DO isink=1,Nsink
-!            indx=idsink(isink)
-!            DO i=Istr,Iend
-!               DO k=1,N(ng)
-!                 thick=HZ(i,j,k)
-!	          cff0=HZ(i,j,k)/dtdays
-!	          cff1=min(0.9_r8*cff0,wbio(isink))
-!                 if(k.eq.N(ng))then
-!                    sinkindx(k) = cff1*Bio(i,k,indx)/thick
-!                 elseif(k.gt.1.and.k.lt.n(ng))then
-!               sinkindx(k) = cff1*(Bio(i,k,indx)-Bio(i,k+1,indx))/thick
-!                elseif(k.eq.1)then
-!                       sinkindx(k) = cff1*(-Bio(i,k+1,indx))/thick
-!                 endif
-!               END DO
-!             DO k=1,N(ng)
-!	          bio(i,k,indx)=bio(i,k,indx)-dtdays*sinkindx(k)
-!              	  bio(i,k,indx)=max(bio(i,k,indx),0.00001_r8)
-!             END DO
-!         END DO
-!        END DO SINK_LOOP
-!
+#ifdef SINK_OP1
+! Nonconservative?
+      SINK_LOOP: DO isink=1,Nsink
+          indx=idsink(isink)
+          DO i=Istr,Iend
+            DO k=1,N(ng)
+              thick=Hz(i,j,k)
+              cff0=Hz(i,j,k)/dtdays
+              cff1=min(0.9_r8*cff0,wbio(isink))
+              if (k.eq.N(ng)) then
+                sinkindx(k) = cff1*Bio(i,k,indx)/thick
+              else if (k.gt.1.and.k.lt.n(ng)) then
+                sinkindx(k) = cff1*(Bio(i,k,indx)-Bio(i,k+1,indx))/ &
+     &                thick
+              else if (k.eq.1) then
+                sinkindx(k) = cff1*(-Bio(i,k+1,indx))/thick
+              endif
+            END DO
+            DO k=1,N(ng)
+              Bio(i,k,indx)=Bio(i,k,indx)-dtdays*sinkindx(k)
+              Bio(i,k,indx)=max(Bio(i,k,indx),Minval)
+            END DO
+          END DO
+        END DO SINK_LOOP
+# endif
+
+#ifdef SINK_OP2
 !  Reconstruct vertical profile of selected biological constituents
 !  "Bio(:,:,isink)" in terms of a set of parabolic segments within each
 !  grid box. Then, compute semi-Lagrangian flux due to sinking.
@@ -1502,6 +2107,7 @@
 
           END DO SINK_LOOP
 
+# endif
       END DO ITER_LOOP
 !
 !-----------------------------------------------------------------------
@@ -1529,7 +2135,14 @@
               t(i,j,k,nnew,indx)=MAX(t(i,j,k,nnew,indx)+                &
      &                               (Bio(i,k,indx)-Bio_bak(i,k,indx))* &
      &                               Hz(i,j,k),                         &
-     &                               0.0_r8)
+     &                               Minval)
+!#ifdef TS_MPDATA
+!              t(i,j,k,3,indx)=t(i,j,k,nnew,indx)*Hz_inv(i,k)
+!#endif
+!
+!             t(i,j,k,nnew,indx)=t(i,j,k,nnew,indx)+                   &
+!     &                (Bio(i,k,indx)-Bio_bak(i,k,indx))*  Hz(i,j,k)
+
             END DO
           END DO
         END DO
@@ -1547,7 +2160,7 @@
      &                     rmask,                                       &
 #endif
      &                     t, s,dic, alk,po4,si,kw660, ppo, xco2,       &
-     &                     co2ex)
+     &                     co2ex,pco2s)
 !c
 !c**********************************************************************
 !c
@@ -1604,6 +2217,7 @@
 
       real(r8), intent(in) :: kw660(IminS:ImaxS)
       real(r8), intent(out) :: co2ex(IminS:ImaxS)
+      real(r8), intent(out) :: pco2s(IminS:ImaxS)
 
       real(r8) :: scco2,kwco2,phlo,phhi
       real(r8) :: co2star,dco2star,pCO2surf,dpco2,ph
@@ -1631,17 +2245,22 @@
       phhi = 9.0_r8
 
       CALL co2calc(t(i),s(i),dic2,alk2,po42,si2,phlo,phhi,               &
-     & 	   xco2,ppo,co2star,dco2star,pCO2surf,dpco2,ph)
+     &     xco2,ppo,co2star,dco2star,pCO2surf,dpco2,ph)
 
       co2ex(i) = kwco2*dco2star
 
 !c  Compute time rate of change of CO2 due to gas exchange [1] in mmol/m^3/day.
 
       co2ex(i) = 1000.0_r8*co2ex(i)
+      pco2s(i) = pCO2surf
+!    write(*,*) 'PPPPPPPPPPPPPPPPPPPPPPPPPP'
+!    write(*,*)t(i),s(i),dic(i),alk(i),po4(i),si(i),xco2,pCO2surf,     &
+!   & ph,co2ex(i)
 
 #  ifdef MASKING
       ELSE
         co2ex(i)=0.0_r8
+        pco2s(i) = 0.0_r8
       END IF
 #  endif
 
@@ -1775,7 +2394,7 @@
 !C Millero p.664 (1995) using Mehrbach et al. data on seawater scale
 !C
       k1=10.0_r8**(-1.0_r8*(3670.7_r8*invtk - 62.008_r8 +                &
-     & 	      9.7944_r8*dlogtk -0.0118_r8 * s + 0.000116_r8*s2))
+     &        9.7944_r8*dlogtk -0.0118_r8 * s + 0.000116_r8*s2))
 !C
       k2=10.0_r8**(-1.0_r8*(1394.7_r8*invtk + 4.777_r8 -                 &
      &            0.0184_r8*s + 0.000118_r8*s2))
@@ -1800,7 +2419,7 @@
 !C
 !C k2p = [H][HPO4]/[H2PO4]
 !C
-!C DOE(1994) eq 7.2.23 with footnote using data from Millero (1974))
+!C DOE(1994) eq 7.2.23 with footnote using data from Millero (1974)
 !C
       k2p = exp(-8814.715_r8*invtk + 172.0883_r8 - 27.927_r8 * dlogtk+   &
      &            (-160.340_r8*invtk + 1.3566_r8) * sqrts +              &
@@ -1909,7 +2528,8 @@
 
        pCO2surf = pCO2surf / permeg
        dpCO2    = dpCO2 / permeg
-
+!       write(*,*) '++++++++',pCO2surf,dpCO2,co2star,ff,ph,htotal, &
+!     &k1,k2,permil,permeg
       RETURN
       END SUBROUTINE co2calc
 
@@ -1931,9 +2551,9 @@
 !C
       MAXIT=100
       CALL ta_iter_1(X1,FL,DF,k0,k1,k2,k1p,k2p,k3p,st,ks,dic,bt,kb,   &
-    &  	      kw,pt,sit,ksi,ft,kf,ta,ff)
+    &         kw,pt,sit,ksi,ft,kf,ta,ff)
       CALL ta_iter_1(X2,FH,DF,k0,k1,k2,k1p,k2p,k3p,st,ks,dic,bt,kb,   &
-    &  	      kw,pt,sit,ksi,ft,kf,ta,ff)
+    &         kw,pt,sit,ksi,ft,kf,ta,ff)
       IF(FL .LT. 0.0_r8) THEN
         XL=X1
         XH=X2
@@ -1948,7 +2568,7 @@
       DXOLD=ABS(X2-X1)
       DX=DXOLD
       CALL ta_iter_1(DRTSAFE2,F,DF,k0,k1,k2,k1p,k2p,k3p,st,ks,dic,bt, &
-     & 	      kb,kw,pt,sit,ksi,ft,kf,ta,ff)
+     &        kb,kw,pt,sit,ksi,ft,kf,ta,ff)
       DO J=1,MAXIT
         IF(((DRTSAFE2-XH)*DF-F)*((DRTSAFE2-XL)*DF-F) .GE. 0.0_r8 .OR. &
      &            ABS(2.0_r8*F) .GT. ABS(DXOLD*DF)) THEN
@@ -1965,7 +2585,7 @@
       END IF
         IF(ABS(DX) .LT. XACC) RETURN
       CALL ta_iter_1(DRTSAFE2,F,DF,k0,k1,k2,k1p,k2p,k3p,st,ks,dic,bt,  &
-     &   	kb,kw,pt,sit,ksi,ft,kf,ta,ff)
+     &    kb,kw,pt,sit,ksi,ft,kf,ta,ff)
         IF(F .LT. 0.0_r8) THEN
           XL=DRTSAFE2
           FL=F
@@ -1978,7 +2598,7 @@
       END SUBROUTINE DRTSAFE
 !-------------------------------------------------------------------------------
       SUBROUTINE ta_iter_1(x,fn,df,k0,k1,k2,k1p,k2p,k3p,st,ks,dic,bt,kb, &
-    &  	      kw,pt,sit,ksi,ft,kf,ta,ff)
+    &         kw,pt,sit,ksi,ft,kf,ta,ff)
       USE mod_kinds
       implicit none
       real(r8),intent(in)  :: x,k0,k1,k2,k1p,k2p,k3p,st,ks,dic,bt,kb
@@ -2230,8 +2850,47 @@
       END SUBROUTINE O2_flux
 # endif
 
-#ifdef OPTIC_UMaine
-      SUBROUTINE optic_property(Istr, Iend, ng,                         &
+
+#ifdef DIURNAL_LIGHT
+        subroutine daily_par(lat,dent3,unit4)
+        USE mod_kinds
+        implicit none
+        real(r8) :: lat
+        real(r8) :: dent3
+        real(r8) :: unit4
+        real(r8) :: hour0,unit1,unit2,unit3
+        real(r8) :: hour,gamma,delta,sintheta
+        hour=mod(dent3,1.0)
+        gamma=2.*3.1415926*dent3/365.25
+        delta=+0.006918                                                &
+     &        -0.399912*cos(gamma)                                     &
+     &        +0.070257*sin(gamma)                                     &
+     &        -0.006758*cos(2.0*gamma)                                 &
+     &        +0.000907*sin(2.0*gamma)                                 &
+     &        -0.002697*cos(3.0*gamma)                                 &
+     &        +0.001480*sin(3.0*gamma)
+
+       sintheta=-cos(hour*2*3.1415926)*cos(delta)*                     &
+     &cos(lat*3.1415926/180.)+                                         &
+     &sin(delta)*sin(lat*3.1415926/180.)
+        unit1=sintheta
+        unit2=max(0.,sintheta)
+        hour0=acos(min(1.0,max(-1.0,sin(delta)*                        &
+     &sin(lat*3.1415926/180.)/                                         &
+     &(cos(delta)*cos(lat*3.1415926/180.)))))/(2.*3.1415926)
+        unit3=-(sin((1.0-hour0)*2.*3.1415926)-                         &
+     &sin((hour0)*2.*3.1415926))*                                      &
+     &cos(delta)*cos(lat*3.1415926/180.)/(2.*3.1415926)+               &
+     &sin(delta)*sin(lat*3.1415926/180.)*(1.-2.*hour0)
+        unit4=min(25.,max(0.,unit2/unit3))
+
+        RETURN
+        END SUBROUTINE daily_par
+#endif
+
+
+#ifdef OPTIC_UMAINE
+      subroutine optic_property(Istr, Iend, ng,                         &
      &                       LBi, UBi, LBj, UBj, UBk,                   &
      &                       IminS, ImaxS, j,                           &
 #  ifdef MASKING
@@ -2410,17 +3069,17 @@
             thetaCS2(k) = chl2(i,k) / c2(i,k)
             thetaCS3(k) = chl3(i,k) / c3(i,k)
            if (thetaCS1(k) .ge. thetaCmax) then
-           	 thetaCS1(k)=thetaCmax-0.000001_r8
+             thetaCS1(k)=thetaCmax-0.000001_r8
            elseif (thetaCS1(k) .le. thetaCmin) then
                  thetaCS1(k)=thetaCmin+0.000001_r8
            endif
            if (thetaCS2(k) .ge. thetaCmax) then
-           	 thetaCS2(k)=thetaCmax-0.000001_r8
+             thetaCS2(k)=thetaCmax-0.000001_r8
            elseif (thetaCS2(k) .le. thetaCmin) then
                  thetaCS2(k)=thetaCmin+0.000001_r8
            endif
            if (thetaCS3(k) .ge. thetaCmax) then
-           	 thetaCS3(k)=thetaCmax-0.000001_r8
+             thetaCS3(k)=thetaCmax-0.000001_r8
            elseif (thetaCS3(k) .le. thetaCmin) then
                  thetaCS3(k)=thetaCmin+0.000001_r8
            endif
@@ -2456,17 +3115,17 @@
 
                      bbp2(k,otrc)                                       &
      & =((( (c2(i,k)+c3(i,k))*12.0_r8/r_phy_POC)                        &
-     &                      /17069.0_r8)**(1.0_r8/0.859_r8) )           &
-     & *( ((400.0_r8+10.0_r8*(otrc-1))/510.0_r8)**(-0.5_r8) )
+     &                      /17069.0_r8)**(1.0_r8/0.859_r8) )         !  &
+!     & *( ((400.0_r8+10.0_r8*(otrc-1))/510.0_r8)**(-0.5_r8) )
 
                   bbp3(k,otrc)=(0.0016_r8*ddca(i,k)-0.0036_r8)          &
      &    * ( (546.0_r8/(400.0_r8+10.0_r8*(otrc-1)))**(1.35_r8) )
 
 !Balch et al., 1996; Gordon et al., 2001
-	if ( bbp3(k,otrc) .lt. 0.0_r8) then
-	   	 bbp3(k,otrc)=( 0.00137_r8*ddca(i,k) )                  &
+        if ( bbp3(k,otrc) .lt. 0.0_r8) then
+            bbp3(k,otrc)=( 0.00137_r8*ddca(i,k) )                  &
      &    * ( (546.0_r8/(400.0_r8+10.0_r8*(otrc-1)))**(1.35_r8))
-	endif
+        endif
 
       bbp(i,k,otrc)=bbp1(k,otrc)+bbp2(k,otrc)+bbp3(k,otrc)+bbg
       a_abs(i,k,otrc)=ap(k,otrc)+adet(k,otrc)+                          &

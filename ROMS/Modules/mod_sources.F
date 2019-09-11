@@ -3,7 +3,7 @@
 !
 !svn $Id$
 !================================================== Hernan G. Arango ===
-!  Copyright (c) 2002-2014 The ROMS/TOMS Group                         !
+!  Copyright (c) 2002-2019 The ROMS/TOMS Group                         !
 !    Licensed under a MIT/X style license                              !
 !    See License_ROMS.txt                                              !
 !=======================================================================
@@ -62,6 +62,8 @@
           real(r8), pointer :: Qsrc(:,:)
 #ifdef ONE_TRACER_SOURCE
           real(r8), pointer :: Tsrc(:)
+#elif defined TWO_D_TRACER_SOURCE
+          real(r8), pointer :: Tsrc(:,:)
 #else
           real(r8), pointer :: Tsrc(:,:,:)
 #endif
@@ -72,6 +74,8 @@
           real(r8), pointer :: QbarG(:,:)
 # ifdef ONE_TRACER_SOURCE
           real(r8), pointer :: TsrcG(:,:)
+# elif defined TWO_D_TRACER_SOURCE
+          real(r8), pointer :: TsrcG(:,:,:)
 # else
           real(r8), pointer :: TsrcG(:,:,:,:)
 # endif
@@ -104,9 +108,11 @@
       USE mod_scalars
 #endif
 !
+      USE strings_mod, ONLY : FoundError
+!
 !  Imported variable declarations.
 !
-      integer :: ng
+      integer :: i, ng
 !
 !  Local variable declarations.
 !
@@ -136,18 +142,21 @@
         DO mg=1,Ngrids
           foundit=.FALSE.
           IF (LuvSrc(mg).or.LwSrc(mg).or.ANY(LtracerSrc(:,mg))) THEN
-            CALL netcdf_inq_var (ng, iNLM, SSF(mg)%name,                &
-     &                           MyVarName = TRIM(Vname(1,idRxpo)),     &
-     &                           SearchVar = foundit,                   &
-     &                           VarID = Vid,                           &
-     &                           nVardim = nvdim,                       &
-     &                           nVarAtt = nvatt)
-            IF (exit_flag.ne.NoError) RETURN
+            DO i=1,nSSFfiles(ng)
+              CALL netcdf_inq_var (ng, iNLM, SSF(i,mg)%name,            &
+     &                             MyVarName = TRIM(Vname(1,idRxpo)),   &
+     &                             SearchVar = foundit,                 &
+     &                             VarID = Vid,                         &
+     &                             nVardim = nvdim,                     &
+     &                             nVarAtt = nvatt)
+              IF (FoundError(exit_flag, NoError, __LINE__,              &
+     &                       __FILE__//", allocate_sources")) RETURN
 
-            IF (foundit) THEN
-              Nsrc(mg)=var_Dsize(1)         ! first dimension
-              Msrc(mg)=Nsrc(mg)
-            END IF
+              IF (foundit) THEN
+                Nsrc(mg)=var_Dsize(1)         ! first dimension
+                Msrc(mg)=Nsrc(mg)
+              END IF
+            END DO
           END IF
         END DO
       END IF
@@ -167,37 +176,58 @@
 !  Allocate point Sources/Sinks variables.
 !
       allocate ( SOURCES(ng) % Isrc(Nsrc(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng),r8)
 
       allocate ( SOURCES(ng) % Jsrc(Nsrc(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng),r8)
 
       allocate ( SOURCES(ng) % Dsrc(Nsrc(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng),r8)
 
       allocate ( SOURCES(ng) % Fsrc(Nsrc(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng),r8)
 
       allocate ( SOURCES(ng) % Qbar(Nsrc(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng),r8)
 
       allocate ( SOURCES(ng) % Qshape(Nsrc(ng),N(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng)*N(ng),r8)
 
       allocate ( SOURCES(ng) % Qsrc(Nsrc(ng),N(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng)*N(ng),r8)
 
 #ifdef ONE_TRACER_SOURCE
       allocate ( SOURCES(ng) % Tsrc(NT(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(NT(ng),r8)
+#elif defined TWO_D_TRACER_SOURCE
+      allocate ( SOURCES(ng) % Tsrc(Nsrc(ng),NT(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng)*NT(ng),r8)
 #else
       allocate ( SOURCES(ng) % Tsrc(Nsrc(ng),N(ng),NT(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng)*N(ng)*NT(ng),r8)
 #endif
 
       allocate ( SOURCES(ng) % Xsrc(Nsrc(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng),r8)
 
       allocate ( SOURCES(ng) % Ysrc(Nsrc(ng)) )
+      Dmem(ng)=Dmem(ng)+REAL(Nsrc(ng),r8)
 
 #ifndef ANA_PSOURCE
       allocate ( SOURCES(ng) % QbarG(Nsrc(ng),2) )
+      Dmem(ng)=Dmem(ng)+2.0_r8*REAL(Nsrc(ng),r8)
 
 # ifdef ONE_TRACER_SOURCE
       allocate ( SOURCES(ng) % TsrcG(2,NT(ng)) )
+      Dmem(ng)=Dmem(ng)+2.0_r8*REAL(NT(ng),r8)
+# elif defined TWO_D_TRACER_SOURCE
+      allocate ( SOURCES(ng) % TsrcG(Nsrc(ng),2,NT(ng)) )
+      Dmem(ng)=Dmem(ng)+2.0_r8*REAL(Nsrc(ng)*NT(ng),r8)
 # else
       allocate ( SOURCES(ng) % TsrcG(Nsrc(ng),N(ng),2,NT(ng)) )
+      Dmem(ng)=Dmem(ng)+2.0_r8*REAL(Nsrc(ng)*N(ng)*NT(ng),r8)
 # endif
+
 #endif
 !
 !-----------------------------------------------------------------------
@@ -230,6 +260,14 @@
         SOURCES(ng) % TsrcG(1,itrc) = IniVal
         SOURCES(ng) % TsrcG(2,itrc) = IniVal
 # endif
+#elif defined TWO_D_TRACER_SOURCE
+        DO is=1,Nsrc(ng)
+          SOURCES(ng) % Tsrc(is,itrc) = IniVal
+# ifndef ANA_PSOURCE
+          SOURCES(ng) % TsrcG(is,1,itrc) = IniVal
+          SOURCES(ng) % TsrcG(is,2,itrc) = IniVal
+# endif
+        END DO
 #else
         DO k=1,N(ng)
           DO is=1,Nsrc(ng)
@@ -249,6 +287,13 @@
 #  ifdef IRON_LIMIT
       SOURCES(ng) % Tsrc(iFe) = 2._r8
 #  endif
+# elif defined TWO_D_TRACER_SOURCE
+      DO is=1,Nsrc(ng)
+        SOURCES(ng) % Tsrc(is,iNO3) = 2._r8
+#  ifdef IRON_LIMIT
+        SOURCES(ng) % Tsrc(is,iFe) = 2._r8
+#  endif
+      END DO
 # else
       DO is=1,Nsrc(ng)
         DO k=1,N(ng)
